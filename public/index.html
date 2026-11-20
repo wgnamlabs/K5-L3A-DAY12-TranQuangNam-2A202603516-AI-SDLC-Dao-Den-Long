@@ -106,6 +106,14 @@
       <h1 class="modal-title">⏸️ TẠM DỪNG</h1>
       <div class="pause-settings">
         <div class="setting-row">
+          <label for="setting-quality">Chất lượng đồ họa:</label>
+          <select id="setting-quality" onchange="changeQualitySetting()">
+            <option value="low">Thấp (Tối ưu FPS)</option>
+            <option value="medium" selected>Vừa (Cân bằng)</option>
+            <option value="high">Cao (Chi tiết đầy đủ)</option>
+          </select>
+        </div>
+        <div class="setting-row">
           <label>Âm lượng:</label>
           <input type="range" id="setting-volume" min="0" max="100" value="80" onchange="saveSettings()">
         </div>

@@ -339,6 +339,16 @@ body, html {
   align-items: center;
 }
 
+.setting-row select {
+  background: #0E1430;
+  color: #F2C14E;
+  border: 1px solid rgba(242, 193, 78, 0.4);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 0.85rem;
+  outline: none;
+}
+
 .btn-group {
   display: flex;
   gap: 12px;

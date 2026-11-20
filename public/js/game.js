@@ -8,8 +8,10 @@ let sim;
 let currentNight = 1;
 let campaignScore = 0;
 let mayMesh, lanternMeshes = [], moteMeshes = [], shadeMeshes = [], drifterMeshes = [], charmMeshes = [];
-let islandMeshGroup, cloudsParticles, pulseRingMesh;
+let islandMeshGroup, pulseRingMesh;
 let hemiLight, dirLight;
+let skyMesh, moonGroup, cloudsGroup, cloudMeshA, cloudPuffs = [], distantGroup, floatingIslets = [], ambientDust;
+let graphicsQuality = 'medium';
 
 // Input & Camera tracking
 const keys = {};
@@ -45,33 +47,44 @@ function init() {
 
   // 1. Scene setup
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x0E1430);
-  scene.fog = new THREE.FogExp2(0x1B2350, 0.018);
+  scene.background = new THREE.Color(0x0A0618);
+  scene.fog = new THREE.FogExp2(0x141838, 0.009);
 
   // 2. Camera setup
-  camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 600);
+  camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 800);
 
   // 3. Renderer setup
-  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
   renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.05;
   container.appendChild(renderer.domElement);
 
   // 4. Lighting
-  hemiLight = new THREE.HemisphereLight(0x1B2350, 0x0E1430, 0.45);
+  hemiLight = new THREE.HemisphereLight(0x2A3568, 0x0B0F20, 0.42);
   scene.add(hemiLight);
 
-  dirLight = new THREE.DirectionalLight(0xFFB347, 0.6);
-  dirLight.position.set(25, 45, 25);
+  // Cool moonlight matching the Moon position
+  dirLight = new THREE.DirectionalLight(0xA0C4FF, 0.68);
+  dirLight.position.set(130, 115, -170);
   dirLight.castShadow = true;
   dirLight.shadow.mapSize.width = 1024;
   dirLight.shadow.mapSize.height = 1024;
+  dirLight.shadow.camera.near = 10;
+  dirLight.shadow.camera.far = 450;
+  dirLight.shadow.camera.left = -65;
+  dirLight.shadow.camera.right = 65;
+  dirLight.shadow.camera.top = 65;
+  dirLight.shadow.camera.bottom = -65;
+  dirLight.shadow.bias = -0.001;
   scene.add(dirLight);
 
-  // 5. Cloud Sea
-  buildCloudSea();
+  // 5. Sky, Moon, Clouds, Parallax Mountains & Atmosphere
+  buildSkyAtmosphere();
+  applyQualitySetting();
 
   // 6. Pulse Shockwave Mesh
   const ringGeo = new THREE.RingGeometry(0.1, 0.4, 32);
@@ -286,26 +299,277 @@ function buildIslandTerrain(night) {
   scene.add(islandMeshGroup);
 }
 
-function buildCloudSea() {
-  const count = 400;
-  const geo = new THREE.BufferGeometry();
-  const positions = new Float32Array(count * 3);
-  for (let i = 0; i < count; i++) {
-    const angle = Math.random() * Math.PI * 2;
-    const r = 45 + Math.random() * 60;
-    positions[i * 3] = Math.cos(angle) * r;
-    positions[i * 3 + 1] = -5 + (Math.random() - 0.5) * 4;
-    positions[i * 3 + 2] = Math.sin(angle) * r;
-  }
-  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  const mat = new THREE.PointsMaterial({
-    color: 0x12384A,
-    size: 5.5,
-    transparent: true,
-    opacity: 0.45
+function createSoftCircleTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 64;
+  canvas.height = 64;
+  const ctx = canvas.getContext('2d');
+  const grad = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+  grad.addColorStop(0, 'rgba(255, 255, 255, 1)');
+  grad.addColorStop(0.35, 'rgba(255, 255, 255, 0.7)');
+  grad.addColorStop(0.7, 'rgba(255, 255, 255, 0.2)');
+  grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 64, 64);
+  return new THREE.CanvasTexture(canvas);
+}
+
+function buildSkyAtmosphere() {
+  if (skyMesh) scene.remove(skyMesh);
+  if (moonGroup) scene.remove(moonGroup);
+  if (cloudsGroup) scene.remove(cloudsGroup);
+  if (distantGroup) scene.remove(distantGroup);
+  if (ambientDust) scene.remove(ambientDust);
+
+  // 1. Sky Dome Shader with night gradient, stars and Milky Way
+  const skyGeo = new THREE.SphereGeometry(480, 32, 24);
+  const skyMat = new THREE.ShaderMaterial({
+    uniforms: {
+      topColor: { value: new THREE.Color(0x080414) },      // Deep midnight purple
+      midColor: { value: new THREE.Color(0x0f183b) },      // Navy indigo
+      horizonColor: { value: new THREE.Color(0x2a1738) },  // Twilight dusk violet
+      glowColor: { value: new THREE.Color(0x853b52) },     // Warm rose horizon glow
+      time: { value: 0 }
+    },
+    vertexShader: `
+      varying vec3 vWorldPos;
+      void main() {
+        vec4 wp = modelMatrix * vec4(position, 1.0);
+        vWorldPos = position;
+        gl_Position = projectionMatrix * viewMatrix * wp;
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 topColor;
+      uniform vec3 midColor;
+      uniform vec3 horizonColor;
+      uniform vec3 glowColor;
+      uniform float time;
+      varying vec3 vWorldPos;
+
+      float hash(vec2 p) {
+        return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+      }
+
+      void main() {
+        vec3 dir = normalize(vWorldPos);
+        float h = dir.y;
+
+        vec3 col;
+        if (h > 0.15) {
+          float t = (h - 0.15) / 0.85;
+          col = mix(midColor, topColor, t);
+        } else if (h >= 0.0) {
+          float t = h / 0.15;
+          col = mix(horizonColor, midColor, t);
+        } else {
+          col = mix(horizonColor, glowColor * 0.4, clamp(-h * 4.0, 0.0, 1.0));
+        }
+
+        // Horizon twilight glow band
+        float horizonGlow = exp(-abs(h) * 16.0) * 0.45;
+        col += glowColor * horizonGlow;
+
+        // Twinkling stars
+        if (h > 0.04) {
+          vec2 starCoord = vec2(atan(dir.z, dir.x) * 45.0, dir.y * 70.0);
+          vec2 iCoord = floor(starCoord);
+          float r = hash(iCoord);
+          if (r > 0.94) {
+            vec2 fCoord = fract(starCoord) - 0.5;
+            float d = length(fCoord);
+            float twinkle = sin(time * 2.0 + r * 6.28) * 0.35 + 0.65;
+            float star = smoothstep(0.18, 0.0, d) * (r - 0.94) * 18.0 * twinkle;
+            col += vec3(0.9, 0.95, 1.0) * star;
+          }
+
+          // Faint Milky Way dust lane
+          float mwBand = abs(dir.x * 0.7 + dir.y * 0.6 - dir.z * 0.4);
+          if (mwBand < 0.35) {
+            float mw = (1.0 - mwBand / 0.35) * 0.07;
+            col += vec3(0.38, 0.45, 0.75) * mw;
+          }
+        }
+
+        gl_FragColor = vec4(col, 1.0);
+      }
+    `,
+    side: THREE.BackSide,
+    depthWrite: false
   });
-  cloudsParticles = new THREE.Points(geo, mat);
-  scene.add(cloudsParticles);
+  skyMesh = new THREE.Mesh(skyGeo, skyMat);
+  scene.add(skyMesh);
+
+  // 2. Poetic Moon with lunar halo
+  moonGroup = new THREE.Group();
+  const moonCanvas = document.createElement('canvas');
+  moonCanvas.width = 128;
+  moonCanvas.height = 128;
+  const mctx = moonCanvas.getContext('2d');
+  const mGrad = mctx.createRadialGradient(64, 64, 8, 64, 64, 60);
+  mGrad.addColorStop(0, '#FFFDE6');
+  mGrad.addColorStop(0.6, '#F8E3B6');
+  mGrad.addColorStop(0.85, '#E8C584');
+  mGrad.addColorStop(1, 'rgba(232, 197, 132, 0)');
+  mctx.fillStyle = mGrad;
+  mctx.beginPath();
+  mctx.arc(64, 64, 60, 0, Math.PI * 2);
+  mctx.fill();
+
+  // Subtle lunar seas / craters
+  mctx.fillStyle = 'rgba(165, 142, 108, 0.22)';
+  mctx.beginPath(); mctx.arc(46, 52, 15, 0, Math.PI * 2); mctx.fill();
+  mctx.beginPath(); mctx.arc(74, 76, 20, 0, Math.PI * 2); mctx.fill();
+  mctx.beginPath(); mctx.arc(82, 44, 12, 0, Math.PI * 2); mctx.fill();
+
+  const moonTex = new THREE.CanvasTexture(moonCanvas);
+  const moonMesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(26, 26),
+    new THREE.MeshBasicMaterial({ map: moonTex, transparent: true, depthWrite: false })
+  );
+  moonGroup.add(moonMesh);
+
+  // Soft lunar halo
+  const haloCanvas = document.createElement('canvas');
+  haloCanvas.width = 128;
+  haloCanvas.height = 128;
+  const hctx = haloCanvas.getContext('2d');
+  const hGrad = hctx.createRadialGradient(64, 64, 8, 64, 64, 62);
+  hGrad.addColorStop(0, 'rgba(255, 235, 175, 0.48)');
+  hGrad.addColorStop(0.35, 'rgba(180, 210, 255, 0.22)');
+  hGrad.addColorStop(1, 'rgba(14, 20, 48, 0)');
+  hctx.fillStyle = hGrad;
+  hctx.fillRect(0, 0, 128, 128);
+  const haloTex = new THREE.CanvasTexture(haloCanvas);
+  const haloMesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(80, 80),
+    new THREE.MeshBasicMaterial({
+      map: haloTex,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    })
+  );
+  haloMesh.position.z = -0.5;
+  moonGroup.add(haloMesh);
+
+  moonGroup.position.set(130, 115, -170);
+  moonGroup.lookAt(0, 0, 0);
+  scene.add(moonGroup);
+
+  // 3. Multi-layer Cloud Sea below the islands
+  cloudsGroup = new THREE.Group();
+
+  const cloudMatA = new THREE.MeshStandardMaterial({
+    color: 0x162248,
+    roughness: 0.95,
+    transparent: true,
+    opacity: 0.88,
+    side: THREE.DoubleSide
+  });
+  cloudMeshA = new THREE.Mesh(new THREE.RingGeometry(35, 190, 48), cloudMatA);
+  cloudMeshA.rotation.x = -Math.PI / 2;
+  cloudMeshA.position.y = -6.5;
+  cloudsGroup.add(cloudMeshA);
+
+  const cloudMatB = new THREE.MeshStandardMaterial({
+    color: 0x0E1430,
+    roughness: 1.0,
+    transparent: true,
+    opacity: 0.96,
+    side: THREE.DoubleSide
+  });
+  const cloudMeshB = new THREE.Mesh(new THREE.CircleGeometry(280, 48), cloudMatB);
+  cloudMeshB.rotation.x = -Math.PI / 2;
+  cloudMeshB.position.y = -12.0;
+  cloudsGroup.add(cloudMeshB);
+
+  // Volumetric cloud puffs drifting around
+  const puffMat = new THREE.MeshStandardMaterial({
+    color: 0x22325E,
+    roughness: 0.92,
+    transparent: true,
+    opacity: 0.65
+  });
+  const puffGeo = new THREE.SphereGeometry(1, 8, 6);
+  cloudPuffs = [];
+  const puffCount = 18;
+  for (let i = 0; i < puffCount; i++) {
+    const angle = (i / puffCount) * Math.PI * 2;
+    const dist = 55 + (i % 5) * 16;
+    const puff = new THREE.Group();
+    const subPuffs = 3 + (i % 3);
+    for (let j = 0; j < subPuffs; j++) {
+      const sp = new THREE.Mesh(puffGeo, puffMat);
+      sp.scale.set(7 + j * 2.2, 2.8 + j * 0.8, 6 + j * 1.6);
+      sp.position.set((j - 1) * 3.5, Math.sin(j) * 0.7, (j % 2) * 2.2);
+      puff.add(sp);
+    }
+    puff.position.set(Math.cos(angle) * dist, -5.5 + (i % 3) * 1.2, Math.sin(angle) * dist);
+    cloudsGroup.add(puff);
+    cloudPuffs.push({ mesh: puff, baseAngle: angle, dist, speed: 0.02 + (i % 3) * 0.01 });
+  }
+  scene.add(cloudsGroup);
+
+  // 4. Distant Mountain Silhouettes & Floating Islets (Parallax)
+  distantGroup = new THREE.Group();
+  const mountainMat = new THREE.MeshBasicMaterial({
+    color: 0x141838,
+    transparent: true,
+    opacity: 0.78
+  });
+  for (let i = 0; i < 14; i++) {
+    const ang = (i / 14) * Math.PI * 2 + 0.15;
+    const dist = 240 + (i % 3) * 35;
+    const height = 35 + (i % 4) * 22;
+    const width = 60 + (i % 3) * 25;
+    const mGeo = new THREE.ConeGeometry(width, height, 4);
+    const mMesh = new THREE.Mesh(mGeo, mountainMat);
+    mMesh.position.set(Math.cos(ang) * dist, -5 + height * 0.35, Math.sin(ang) * dist);
+    distantGroup.add(mMesh);
+  }
+
+  // Floating mini islets in the distance
+  const isletMat = new THREE.MeshBasicMaterial({ color: 0x1b2246 });
+  floatingIslets = [];
+  for (let i = 0; i < 5; i++) {
+    const ang = (i / 5) * Math.PI * 2 + 0.8;
+    const dist = 110 + i * 24;
+    const islet = new THREE.Group();
+    const rock = new THREE.Mesh(new THREE.ConeGeometry(4 + i, 6 + i * 1.5, 6), isletMat);
+    rock.rotation.x = Math.PI;
+    islet.add(rock);
+    const pagoda = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.8, 1.2), isletMat);
+    pagoda.position.y = 1.0;
+    islet.add(pagoda);
+    islet.position.set(Math.cos(ang) * dist, 2 + Math.sin(i) * 5, Math.sin(ang) * dist);
+    distantGroup.add(islet);
+    floatingIslets.push({ mesh: islet, ang, dist, baseY: islet.position.y });
+  }
+  scene.add(distantGroup);
+
+  // 5. Ambient Atmospheric Dust Motes
+  const dustCount = 80;
+  const dustGeo = new THREE.BufferGeometry();
+  const dustPos = new Float32Array(dustCount * 3);
+  for (let i = 0; i < dustCount; i++) {
+    dustPos[i * 3] = (Math.random() - 0.5) * 80;
+    dustPos[i * 3 + 1] = Math.random() * 12 + 0.5;
+    dustPos[i * 3 + 2] = (Math.random() - 0.5) * 80;
+  }
+  dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPos, 3));
+  const dustTex = createSoftCircleTexture();
+  const dustMat = new THREE.PointsMaterial({
+    size: 0.85,
+    map: dustTex,
+    transparent: true,
+    opacity: 0.45,
+    color: 0xFFE082,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false
+  });
+  ambientDust = new THREE.Points(dustGeo, dustMat);
+  scene.add(ambientDust);
 }
 
 function buildCharacter() {
@@ -662,6 +926,48 @@ function loadSettings() {
     document.body.classList.add('large-text');
     const el = document.getElementById('setting-large-text');
     if (el) el.checked = true;
+  }
+  const savedQuality = localStorage.getItem('dao_den_long_quality');
+  if (savedQuality) {
+    graphicsQuality = savedQuality;
+    const el = document.getElementById('setting-quality');
+    if (el) el.value = graphicsQuality;
+  }
+}
+
+function changeQualitySetting() {
+  const el = document.getElementById('setting-quality');
+  if (el) {
+    graphicsQuality = el.value;
+    localStorage.setItem('dao_den_long_quality', graphicsQuality);
+    applyQualitySetting();
+  }
+}
+
+function applyQualitySetting() {
+  if (!renderer) return;
+  if (graphicsQuality === 'low') {
+    renderer.setPixelRatio(1.0);
+    if (dirLight && dirLight.shadow) {
+      dirLight.shadow.mapSize.width = 512;
+      dirLight.shadow.mapSize.height = 512;
+    }
+    if (ambientDust) ambientDust.visible = false;
+  } else if (graphicsQuality === 'high') {
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2.0));
+    if (dirLight && dirLight.shadow) {
+      dirLight.shadow.mapSize.width = 2048;
+      dirLight.shadow.mapSize.height = 2048;
+    }
+    if (ambientDust) ambientDust.visible = true;
+  } else {
+    // Medium
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    if (dirLight && dirLight.shadow) {
+      dirLight.shadow.mapSize.width = 1024;
+      dirLight.shadow.mapSize.height = 1024;
+    }
+    if (ambientDust) ambientDust.visible = true;
   }
 }
 
@@ -1047,8 +1353,32 @@ function renderVisuals(time) {
     pulseRingMesh.material.opacity = Math.max(0, pulseRingMesh.material.opacity - 0.045);
   }
 
-  // Cloud rotation
-  if (cloudsParticles) cloudsParticles.rotation.y = time * 0.01;
+  // Sky, clouds, atmosphere animation
+  const isReducedMotion = document.body.classList.contains('reduced-motion');
+  const animTime = isReducedMotion ? 0 : time;
+  if (skyMesh && skyMesh.material && skyMesh.material.uniforms) {
+    skyMesh.material.uniforms.time.value = animTime;
+  }
+  if (cloudMeshA && !isReducedMotion) {
+    cloudMeshA.rotation.z = time * 0.005;
+  }
+  if (cloudPuffs && !isReducedMotion) {
+    for (let i = 0; i < cloudPuffs.length; i++) {
+      const p = cloudPuffs[i];
+      const ang = p.baseAngle + time * p.speed * 0.15;
+      p.mesh.position.x = Math.cos(ang) * p.dist;
+      p.mesh.position.z = Math.sin(ang) * p.dist;
+    }
+  }
+  if (floatingIslets && !isReducedMotion) {
+    for (let i = 0; i < floatingIslets.length; i++) {
+      const isl = floatingIslets[i];
+      isl.mesh.position.y = isl.baseY + Math.sin(time * 0.6 + isl.ang) * 0.4;
+    }
+  }
+  if (ambientDust && !isReducedMotion && ambientDust.visible) {
+    ambientDust.rotation.y = time * 0.015;
+  }
 }
 
 // ==========================================
