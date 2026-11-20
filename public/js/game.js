@@ -206,6 +206,7 @@ function showNightIntro(nightNum) {
 function startNightGame() {
   document.getElementById('modal-intro').classList.remove('active');
   window.soundFx.init();
+  if (window.soundFx.startAmbient) window.soundFx.startAmbient(currentNight);
   requestGamePointerLock();
 
   sim = new GameSimulation({
@@ -1641,11 +1642,13 @@ function togglePauseGame() {
     sim.state = "paused";
     modalPause.classList.add('active');
     exitGamePointerLock();
+    if (window.soundFx && window.soundFx.pauseAmbient) window.soundFx.pauseAmbient();
   } else {
     sim.isPaused = false;
     sim.state = "playing";
     modalPause.classList.remove('active');
     requestGamePointerLock();
+    if (window.soundFx && window.soundFx.resumeAmbient) window.soundFx.resumeAmbient();
   }
 }
 
@@ -1856,6 +1859,7 @@ function animate(now) {
         }
         else if (ev.name === 'game_over') {
           exitGamePointerLock();
+          if (window.soundFx && window.soundFx.stopAmbient) window.soundFx.stopAmbient();
           if (ev.data.result === 'won') {
             window.soundFx.playWon();
             document.getElementById('win-score').textContent = sim.score;
@@ -2024,7 +2028,13 @@ function updateHUD() {
 
   // Atmospheric lighting formula: 0.15 + 0.55 * (lit / total)
   const ratio = litCount / sim.lanterns.length;
-  hemiLight.intensity = 0.15 + 0.55 * ratio;
+  hemiLight.intensity = 0.30 + 0.35 * ratio;
+
+  // Dynamic ambient soundscape update
+  const hasLowFuel = sim.lanterns.some(l => l.lit && l.fuel_units < 1800);
+  if (window.soundFx && window.soundFx.updateAmbientState) {
+    window.soundFx.updateAmbientState(ratio, hasLowFuel, sim.isPaused);
+  }
 }
 
 function renderVisuals(time) {
