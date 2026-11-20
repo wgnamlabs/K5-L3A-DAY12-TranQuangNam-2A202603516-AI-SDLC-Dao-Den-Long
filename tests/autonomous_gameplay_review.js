@@ -8,13 +8,45 @@
 const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
+const http = require('http');
+const { fork } = require('child_process');
 
-const reviewDir = path.join(__dirname, '../docs/proof/gameplay/review');
+const targetDirName = process.argv[2] || process.env.REVIEW_DIR || 'review_v2';
+const reviewDir = path.isAbsolute(targetDirName) 
+  ? targetDirName 
+  : path.join(__dirname, '../docs/proof/gameplay', targetDirName);
 if (!fs.existsSync(reviewDir)) fs.mkdirSync(reviewDir, { recursive: true });
+
+const GAME_PORT = process.env.PORT || 3456;
+
+function checkServerReady(port = GAME_PORT) {
+  return new Promise((resolve) => {
+    const req = http.get(`http://localhost:${port}/`, (res) => {
+      resolve(true);
+    });
+    req.on('error', () => resolve(false));
+    req.setTimeout(500, () => {
+      req.destroy();
+      resolve(false);
+    });
+  });
+}
 
 async function runAutonomousReview() {
   console.log('--- BẮT ĐẦU PHIÊN CHƠI THỰC TẾ & ĐÁNH GIÁ TOÀN DIỆN ĐẢO ĐÈN LỒNG ---');
+  console.log(`--- Thư mục lưu ảnh: ${reviewDir} ---`);
   
+  let serverProcess = null;
+  const isUp = await checkServerReady(GAME_PORT);
+  if (!isUp) {
+    console.log(`Khởi chạy HTTP server tại http://localhost:${GAME_PORT} ...`);
+    serverProcess = fork(path.join(__dirname, '../src/server.js'), [String(GAME_PORT)], { stdio: 'ignore' });
+    for (let i = 0; i < 25; i++) {
+      await new Promise(r => setTimeout(r, 200));
+      if (await checkServerReady(GAME_PORT)) break;
+    }
+  }
+
   const browser = await chromium.launch({
     channel: 'chrome',
     headless: true,
@@ -38,9 +70,9 @@ async function runAutonomousReview() {
 
   try {
     // 1. Tải trang chính
-    console.log('1. Tải trang http://localhost:3000/ ...');
+    console.log(`1. Tải trang http://localhost:${GAME_PORT}/ ...`);
     const navStart = Date.now();
-    await page.goto('http://localhost:3000/', { waitUntil: 'domcontentloaded' });
+    await page.goto(`http://localhost:${GAME_PORT}/`, { waitUntil: 'domcontentloaded' });
     const loadMs = Date.now() - navStart;
     findings.performance.loadMs = loadMs;
     console.log(`   Thời gian tải: ${loadMs}ms`);
@@ -243,7 +275,10 @@ async function runAutonomousReview() {
   } catch (err) {
     console.error('LỖI TRONG KHI CHƠI:', err);
   } finally {
-    await browser.close();
+    if (browser) await browser.close();
+    if (serverProcess) {
+      serverProcess.kill();
+    }
   }
 
   return findings;
