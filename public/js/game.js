@@ -8,10 +8,11 @@ let sim;
 let currentNight = 1;
 let campaignScore = 0;
 let mayMesh, lanternMeshes = [], moteMeshes = [], shadeMeshes = [], drifterMeshes = [], charmMeshes = [];
-let islandMeshGroup, pulseRingMesh;
+let islandMeshGroup, pulseRingMesh, pulseDomeMesh;
 let hemiLight, dirLight;
 let skyMesh, moonGroup, cloudsGroup, cloudMeshA, cloudPuffs = [], distantGroup, floatingIslets = [], ambientDust;
 let graphicsQuality = 'medium';
+let cameraShake = 0;
 
 // Input & Camera tracking
 const keys = {};
@@ -86,18 +87,31 @@ function init() {
   buildSkyAtmosphere();
   applyQualitySetting();
 
-  // 6. Pulse Shockwave Mesh
+  // 6. Pulse Shockwave Mesh & Energy Dome
   const ringGeo = new THREE.RingGeometry(0.1, 0.4, 32);
   ringGeo.rotateX(-Math.PI / 2);
   const ringMat = new THREE.MeshBasicMaterial({
     color: 0xF2C14E,
     side: THREE.DoubleSide,
     transparent: true,
-    opacity: 0.0
+    opacity: 0.0,
+    blending: THREE.AdditiveBlending
   });
   pulseRingMesh = new THREE.Mesh(ringGeo, ringMat);
   pulseRingMesh.position.y = 0.1;
   scene.add(pulseRingMesh);
+
+  const domeGeo = new THREE.SphereGeometry(0.5, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.5);
+  const domeMat = new THREE.MeshBasicMaterial({
+    color: 0xFFA533,
+    wireframe: true,
+    transparent: true,
+    opacity: 0.0,
+    blending: THREE.AdditiveBlending
+  });
+  pulseDomeMesh = new THREE.Mesh(domeGeo, domeMat);
+  pulseDomeMesh.position.y = 0.1;
+  scene.add(pulseDomeMesh);
 
   // 7. Event listeners
   window.addEventListener('resize', onWindowResize);
@@ -1407,32 +1421,79 @@ function buildShades() {
   shadeMeshes.forEach(m => scene.remove(m));
   shadeMeshes = [];
 
+  const bodyGeo = new THREE.SphereGeometry(0.68, 16, 14);
+  const eyeGeo = new THREE.SphereGeometry(0.1, 8, 8);
+  eyeGeo.scale(1.2, 0.7, 0.5);
+
+  const starGeo = new THREE.OctahedronGeometry(0.12);
+  const starMat = new THREE.MeshBasicMaterial({ color: 0xF2C14E });
+
   sim.shades.forEach(s => {
     const group = new THREE.Group();
 
-    // Body (#120A1A) with outline glow (#7A3CFF)
-    const geo = new THREE.SphereGeometry(0.65, 16, 16);
+    // Body
     const mat = new THREE.MeshStandardMaterial({
       color: 0x120A1A,
-      roughness: 0.3,
-      metalness: 0.6
+      roughness: 0.35,
+      metalness: 0.5
     });
-    const body = new THREE.Mesh(geo, mat);
+    const body = new THREE.Mesh(bodyGeo, mat);
     body.position.y = 0.8;
     body.castShadow = true;
     group.add(body);
 
-    const eyeGeo = new THREE.SphereGeometry(0.09, 8, 8);
-    const eyeMat = new THREE.MeshBasicMaterial({ color: 0xFF5A5F });
+    // Eyes
+    const eyeMat = new THREE.MeshBasicMaterial({ color: 0xFF4D4D });
     const eye1 = new THREE.Mesh(eyeGeo, eyeMat);
-    eye1.position.set(0.22, 0.9, 0.55);
+    eye1.position.set(0.24, 0.9, 0.58);
+    eye1.rotation.z = -0.25;
     const eye2 = new THREE.Mesh(eyeGeo, eyeMat);
-    eye2.position.set(-0.22, 0.9, 0.55);
+    eye2.position.set(-0.24, 0.9, 0.58);
+    eye2.rotation.z = 0.25;
     group.add(eye1);
     group.add(eye2);
 
+    // Tentacles beneath body
+    const tentacleMat = new THREE.MeshStandardMaterial({ color: 0x160C20, roughness: 0.4 });
+    const tentacles = [];
+    for (let t = 0; t < 5; t++) {
+      const tang = (t / 5) * Math.PI * 2;
+      const tentGeo = new THREE.CylinderGeometry(0.06, 0.02, 0.65, 6);
+      tentGeo.translate(0, -0.32, 0);
+      const tent = new THREE.Mesh(tentGeo, tentacleMat);
+      tent.position.set(Math.cos(tang) * 0.35, 0.5, Math.sin(tang) * 0.35);
+      group.add(tent);
+      tentacles.push(tent);
+    }
+
+    // Stun Stars Halo (visible when stunned)
+    const stunStarsGroup = new THREE.Group();
+    stunStarsGroup.position.set(0, 1.65, 0);
+    stunStarsGroup.visible = false;
+    for (let st = 0; st < 3; st++) {
+      const sang = (st / 3) * Math.PI * 2;
+      const sMesh = new THREE.Mesh(starGeo, starMat);
+      sMesh.position.set(Math.cos(sang) * 0.5, 0, Math.sin(sang) * 0.5);
+      stunStarsGroup.add(sMesh);
+    }
+    group.add(stunStarsGroup);
+
+    // Siphon ink drain beam (visible when draining)
+    const drainBeamGeo = new THREE.CylinderGeometry(0.08, 0.16, 1.0, 6);
+    drainBeamGeo.translate(0, 0.5, 0);
+    drainBeamGeo.rotateX(Math.PI / 2);
+    const drainBeamMat = new THREE.MeshBasicMaterial({
+      color: 0x8A2BE2,
+      transparent: true,
+      opacity: 0.75,
+      blending: THREE.AdditiveBlending
+    });
+    const drainBeam = new THREE.Mesh(drainBeamGeo, drainBeamMat);
+    drainBeam.visible = false;
+    group.add(drainBeam);
+
     group.position.set(s.pos[0], s.pos[1], s.pos[2]);
-    group.userData = { id: s.id, eyeMat, body };
+    group.userData = { id: s.id, eyeMat, body, tentacles, stunStarsGroup, drainBeam };
     scene.add(group);
     shadeMeshes.push(group);
   });
@@ -1442,16 +1503,55 @@ function buildDrifters() {
   drifterMeshes.forEach(m => scene.remove(m));
   drifterMeshes = [];
 
+  const ribbonMat1 = new THREE.MeshBasicMaterial({
+    color: 0x8FA3B8,
+    transparent: true,
+    opacity: 0.85
+  });
+  const ribbonMat2 = new THREE.MeshBasicMaterial({
+    color: 0x00E5FF,
+    transparent: true,
+    opacity: 0.6,
+    blending: THREE.AdditiveBlending
+  });
+
   sim.drifters.forEach(d => {
     const group = new THREE.Group();
-    // Teal ribbon (#8FA3B8)
-    const geo = new THREE.TorusGeometry(0.5, 0.08, 8, 24);
-    const mat = new THREE.MeshBasicMaterial({ color: 0x8FA3B8 });
-    const ribbon = new THREE.Mesh(geo, mat);
-    ribbon.position.y = 1.0;
-    group.add(ribbon);
+
+    // Outer swirling teal ribbon
+    const geo1 = new THREE.TorusGeometry(0.55, 0.08, 8, 24);
+    const ribbon1 = new THREE.Mesh(geo1, ribbonMat1);
+    ribbon1.position.y = 1.0;
+    group.add(ribbon1);
+
+    // Inner glowing whirlwind ring
+    const geo2 = new THREE.TorusGeometry(0.38, 0.05, 8, 20);
+    const ribbon2 = new THREE.Mesh(geo2, ribbonMat2);
+    ribbon2.position.y = 1.0;
+    ribbon2.rotation.x = Math.PI / 3;
+    group.add(ribbon2);
+
+    // Wind dust particles
+    const partGeo = new THREE.BufferGeometry();
+    const pPos = new Float32Array(12 * 3);
+    for (let p = 0; p < 12; p++) {
+      const pang = (p / 12) * Math.PI * 2;
+      pPos[p * 3] = Math.cos(pang) * 0.45;
+      pPos[p * 3 + 1] = 0.8 + (p % 4) * 0.12;
+      pPos[p * 3 + 2] = Math.sin(pang) * 0.45;
+    }
+    partGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+    const dustParticles = new THREE.Points(partGeo, new THREE.PointsMaterial({
+      color: 0xCCFFFF,
+      size: 0.25,
+      transparent: true,
+      opacity: 0.75,
+      blending: THREE.AdditiveBlending
+    }));
+    group.add(dustParticles);
+
     group.position.set(d.pos[0], d.pos[1], d.pos[2]);
-    group.userData = { id: d.id, ribbon };
+    group.userData = { id: d.id, ribbon: ribbon1, ribbon2, dustParticles };
     scene.add(group);
     drifterMeshes.push(group);
   });
@@ -1749,7 +1849,11 @@ function animate(now) {
           window.soundFx.playPulse();
           triggerPulseEffect();
         } else if (ev.name === 'dash') window.soundFx.playDash();
-        else if (ev.name === 'player_hit') window.soundFx.playHit();
+        else if (ev.name === 'player_hit') {
+          window.soundFx.playHit();
+          document.body.classList.add('damage-flash');
+          setTimeout(() => document.body.classList.remove('damage-flash'), 280);
+        }
         else if (ev.name === 'game_over') {
           exitGamePointerLock();
           if (ev.data.result === 'won') {
@@ -1794,6 +1898,16 @@ function triggerPulseEffect() {
   pulseRingMesh.position.set(sim.player.pos[0], sim.player.pos[1] + 0.15, sim.player.pos[2]);
   pulseRingMesh.scale.set(1, 1, 1);
   pulseRingMesh.material.opacity = 0.95;
+
+  if (pulseDomeMesh) {
+    pulseDomeMesh.position.set(sim.player.pos[0], sim.player.pos[1] + 0.1, sim.player.pos[2]);
+    pulseDomeMesh.scale.set(1, 1, 1);
+    pulseDomeMesh.material.opacity = 0.85;
+  }
+
+  if (!document.body.classList.contains('reduced-motion')) {
+    cameraShake = 0.22;
+  }
 }
 
 function updateHUD() {
@@ -2055,10 +2169,16 @@ function renderVisuals(time) {
     }
   }
 
-  // Camera Follow
+  // Camera Follow with screen shake (respecting reduced-motion)
   if (sim) {
-    const camX = sim.player.pos[0] - Math.sin(camYaw) * camDist * Math.cos(camPitch);
-    const camY = sim.player.pos[1] + Math.sin(camPitch) * camDist + 2.0;
+    let shakeX = 0, shakeY = 0;
+    if (cameraShake > 0 && !document.body.classList.contains('reduced-motion')) {
+      shakeX = (Math.random() - 0.5) * cameraShake * 1.2;
+      shakeY = (Math.random() - 0.5) * cameraShake * 1.2;
+      cameraShake = Math.max(0, cameraShake - 0.018);
+    }
+    const camX = sim.player.pos[0] - Math.sin(camYaw) * camDist * Math.cos(camPitch) + shakeX;
+    const camY = sim.player.pos[1] + Math.sin(camPitch) * camDist + 2.0 + shakeY;
     const camZ = sim.player.pos[2] - Math.cos(camYaw) * camDist * Math.cos(camPitch);
     camera.position.set(camX, camY, camZ);
     camera.lookAt(sim.player.pos[0], sim.player.pos[1] + 1.2, sim.player.pos[2]);
@@ -2156,32 +2276,63 @@ function renderVisuals(time) {
     }
   });
 
-  // Shades visual update (Colorblind mode + Drain state)
+  // Shades visual update (Colorblind mode + All states)
   shadeMeshes.forEach((mesh, idx) => {
     const sData = sim.shades.find(item => item.id === mesh.userData.id);
     if (sData) {
-      mesh.position.set(sData.pos[0], sData.pos[1] + 0.7 + Math.sin(time * 4 + idx) * 0.1, sData.pos[2]);
-      const eyeColor = isColorblind ? 0x00B3FF : 0xFF5A5F;
-      const bodyColor = isColorblind ? 0x003366 : 0x120A1A;
+      mesh.position.set(sData.pos[0], sData.pos[1] + 0.72 + Math.sin(time * 4 + idx) * 0.1, sData.pos[2]);
+      const eyeColor = isColorblind ? 0x00B3FF : 0xFF4D4D;
+      const bodyColor = isColorblind ? 0x002B55 : 0x120A1A;
 
+      const ud = mesh.userData;
       if (sData.state === 'stunned') {
-        mesh.userData.eyeMat.color.setHex(0x3A3450);
-        mesh.rotation.y += 0.12;
+        ud.eyeMat.color.setHex(0x352E42);
+        ud.body.material.color.setHex(0x221B30);
+        mesh.rotation.y += 0.14;
+        if (ud.stunStarsGroup) {
+          ud.stunStarsGroup.visible = true;
+          ud.stunStarsGroup.rotation.y = time * 7.0;
+        }
+        if (ud.drainBeam) ud.drainBeam.visible = false;
+        if (ud.tentacles) ud.tentacles.forEach(t => { t.rotation.x = 0.35; });
       } else if (sData.state === 'drain') {
-        mesh.userData.eyeMat.color.setHex(eyeColor);
-        mesh.userData.body.material.color.setHex(isColorblind ? 0x00B3FF : 0x7A3CFF);
+        ud.eyeMat.color.setHex(eyeColor);
+        ud.body.material.color.setHex(isColorblind ? 0x00B3FF : 0x8A2BE2);
+        ud.body.scale.setScalar(1.0 + Math.sin(time * 12) * 0.08);
+        if (ud.stunStarsGroup) ud.stunStarsGroup.visible = false;
         const tL = sim.lanterns.find(l => l.id === sData.target_lantern_id);
         if (tL) {
           const dx = tL.pos[0] - sData.pos[0];
           const dz = tL.pos[2] - sData.pos[2];
+          const dist = Math.hypot(dx, dz);
           mesh.rotation.y = Math.atan2(dx, dz);
+          if (ud.drainBeam) {
+            ud.drainBeam.visible = true;
+            ud.drainBeam.scale.set(1, 1, dist);
+          }
         }
-      } else {
-        mesh.userData.eyeMat.color.setHex(eyeColor);
-        mesh.userData.body.material.color.setHex(bodyColor);
+        if (ud.tentacles) ud.tentacles.forEach((t, ti) => { t.rotation.x = 0.2 + Math.sin(time * 8 + ti) * 0.15; });
+      } else if (sData.state === 'chase') {
+        ud.eyeMat.color.setHex(eyeColor);
+        ud.body.material.color.setHex(bodyColor);
+        ud.body.scale.set(0.9, 0.9, 1.2);
+        if (ud.stunStarsGroup) ud.stunStarsGroup.visible = false;
+        if (ud.drainBeam) ud.drainBeam.visible = false;
         const dx = sim.player.pos[0] - sData.pos[0];
         const dz = sim.player.pos[2] - sData.pos[2];
         mesh.rotation.y = Math.atan2(dx, dz);
+        if (ud.tentacles) ud.tentacles.forEach((t, ti) => { t.rotation.x = -0.55 + Math.sin(time * 14 + ti) * 0.2; });
+      } else {
+        // Wander / Recoil
+        ud.eyeMat.color.setHex(eyeColor);
+        ud.body.material.color.setHex(bodyColor);
+        ud.body.scale.set(1.0, 1.0, 1.0);
+        if (ud.stunStarsGroup) ud.stunStarsGroup.visible = false;
+        if (ud.drainBeam) ud.drainBeam.visible = false;
+        const dx = sim.player.pos[0] - sData.pos[0];
+        const dz = sim.player.pos[2] - sData.pos[2];
+        mesh.rotation.y = Math.atan2(dx, dz);
+        if (ud.tentacles) ud.tentacles.forEach((t, ti) => { t.rotation.x = Math.sin(time * 4 + ti) * 0.15; });
       }
     }
   });
@@ -2192,8 +2343,17 @@ function renderVisuals(time) {
     if (dData && dData.state !== 'removed') {
       mesh.visible = true;
       mesh.position.set(dData.pos[0], dData.pos[1] + 1.2 + Math.sin(time * 5) * 0.25, dData.pos[2]);
-      mesh.userData.ribbon.rotation.x += 0.05;
-      mesh.userData.ribbon.rotation.y += 0.08;
+      if (mesh.userData.ribbon) {
+        mesh.userData.ribbon.rotation.x += 0.06;
+        mesh.userData.ribbon.rotation.y += 0.08;
+      }
+      if (mesh.userData.ribbon2) {
+        mesh.userData.ribbon2.rotation.z -= 0.07;
+        mesh.userData.ribbon2.rotation.x += 0.05;
+      }
+      if (mesh.userData.dustParticles) {
+        mesh.userData.dustParticles.rotation.y += 0.1;
+      }
     } else {
       mesh.visible = false;
     }
@@ -2211,11 +2371,17 @@ function renderVisuals(time) {
     }
   });
 
-  // Pulse ring
+  // Pulse ring & Energy Dome
   if (pulseRingMesh.material.opacity > 0) {
-    pulseRingMesh.scale.x += 0.35;
-    pulseRingMesh.scale.z += 0.35;
+    pulseRingMesh.scale.x += 0.38;
+    pulseRingMesh.scale.z += 0.38;
     pulseRingMesh.material.opacity = Math.max(0, pulseRingMesh.material.opacity - 0.045);
+  }
+  if (pulseDomeMesh && pulseDomeMesh.material.opacity > 0) {
+    pulseDomeMesh.scale.x += 0.35;
+    pulseDomeMesh.scale.y += 0.35;
+    pulseDomeMesh.scale.z += 0.35;
+    pulseDomeMesh.material.opacity = Math.max(0, pulseDomeMesh.material.opacity - 0.05);
   }
 
   // Sky, clouds, atmosphere animation

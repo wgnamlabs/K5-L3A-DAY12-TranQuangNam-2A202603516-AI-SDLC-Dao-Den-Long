@@ -585,3 +585,26 @@ body.large-text .controls-hint {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* Hit Flash Vignette (Combat Feedback) */
+body.damage-flash::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 99;
+  box-shadow: inset 0 0 90px 30px rgba(200, 16, 46, 0.65);
+  animation: flash-fade 0.28s ease-out forwards;
+}
+
+body.colorblind-mode.damage-flash::after {
+  box-shadow: inset 0 0 90px 30px rgba(0, 179, 255, 0.65);
+}
+
+@keyframes flash-fade {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
