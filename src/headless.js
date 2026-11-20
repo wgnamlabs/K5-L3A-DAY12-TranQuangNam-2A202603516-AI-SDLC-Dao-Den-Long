@@ -142,6 +142,9 @@ try {
 }
 
 const outStream = fs.createWriteStream(params.out, { encoding: 'utf-8' });
+outStream.on('error', (err) => {
+  printErrorAndExit(`Cannot write output file: ${err.message}`, 1);
+});
 
 function writeLine(obj) {
   outStream.write(JSON.stringify(obj) + '\n');

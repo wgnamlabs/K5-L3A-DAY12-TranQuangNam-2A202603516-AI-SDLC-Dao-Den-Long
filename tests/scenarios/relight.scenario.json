@@ -1,0 +1,10 @@
+{
+  "player": { "pos": [0, 0, 24], "carried": 5, "flames": 3 },
+  "random_motes": false,
+  "random_shades": false,
+  "motes": [],
+  "shades": [],
+  "lanterns": [
+    { "id": "L1", "pos": [0, 0, 25], "lit": false, "ever_lit": true, "deposited": 0 }
+  ]
+}

@@ -373,3 +373,49 @@ body, html {
   color: #F5F1E6;
   cursor: pointer;
 }
+
+/* Colorblind Mode (Phase 3) */
+body.colorblind-mode .urgent {
+  color: #FFFFFF !important;
+  text-shadow: 0 0 10px #FFFFFF !important;
+}
+
+body.colorblind-mode .urgent::before {
+  content: "⚠ ";
+  color: #FFFFFF;
+}
+
+body.colorblind-mode #prompt-banner.urgent {
+  color: #FFFFFF !important;
+  border-color: #FFFFFF !important;
+}
+
+body.colorblind-mode #prompt-banner.urgent::before {
+  content: "⚠ ";
+  color: #FFFFFF;
+}
+
+body.colorblind-mode .flame-icon {
+  filter: drop-shadow(0 0 8px #00B3FF) !important;
+}
+
+body.colorblind-mode #modal-lost h1 {
+  color: #FFFFFF !important;
+}
+
+body.colorblind-mode #modal-lost h1::before {
+  content: "⚠ ";
+}
+
+/* Dynamic Slots Container */
+.slots-container {
+  display: flex;
+  flex-wrap: wrap;
+  max-width: 280px;
+  gap: 4px;
+}
+
+.slot {
+  width: 20px;
+  height: 20px;
+}

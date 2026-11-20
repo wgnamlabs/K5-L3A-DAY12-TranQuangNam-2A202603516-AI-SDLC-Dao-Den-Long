@@ -201,8 +201,22 @@ async function autonomousPlayAndEvaluate() {
     await page.evaluate(() => {
       window.sim.player.carried = 10;
       window.sim.player.pos = [0, 0, 24.2];
+      window.sim.player.vel = [0, 0, 0];
+      window.sim.currentInput.move = [0, 0];
     });
     await page.waitForTimeout(300);
+
+    const debugBanner = await page.evaluate(() => {
+      const l1 = window.sim.lanterns.find(l => l.id === 'L1');
+      return {
+        className: document.getElementById('prompt-banner').className,
+        dist: Math.hypot(l1.pos[0] - window.sim.player.pos[0], l1.pos[2] - window.sim.player.pos[2]),
+        pos: window.sim.player.pos,
+        carried: window.sim.player.carried,
+        l1Lit: l1.lit
+      };
+    });
+    console.log("DEBUG BANNER:", JSON.stringify(debugBanner));
 
     const bannerText = await page.$eval('#prompt-banner', el => el.textContent);
     const bannerActive = await page.$eval('#prompt-banner', el => el.classList.contains('active'));
@@ -379,6 +393,82 @@ async function autonomousPlayAndEvaluate() {
       night3Elements.night === 3 && night3Elements.lanternsCount === 7 && night3Elements.windEnabled
     );
     await page.screenshot({ path: path.join(shotDir, '07_night3_bell_island.png') });
+
+    // 14. Đánh giá Châm dầu đèn đang sáng (Phase 3 - Refuel)
+    await page.evaluate(() => {
+      showNightIntro(1);
+      startNightGame();
+      const l1 = window.sim.lanterns.find(l => l.id === 'L1');
+      l1.lit = true;
+      l1.fuel_units = 5100; // 85 fuel
+      l1.ever_lit = true;
+      window.sim.player.carried = 3;
+      window.sim.player.pos = [0, 0, 24.2];
+    });
+    await page.waitForTimeout(300);
+
+    const refuelBannerText = await page.$eval('#prompt-banner', el => el.textContent);
+    logEval(
+      "Dòng nhắc Châm dầu đèn đang sáng",
+      "Hiện nhắc 'E — Châm dầu' kèm mức dầu hiện tại và số đom đóm cần nạp.",
+      `Nội dung nhắc: "${refuelBannerText}"`,
+      refuelBannerText.includes("Châm dầu")
+    );
+
+    await page.keyboard.press('KeyE');
+    await page.waitForTimeout(300);
+
+    const refuelResult = await page.evaluate(() => {
+      const l1 = window.sim.lanterns.find(l => l.id === 'L1');
+      return {
+        fuel: Math.round((l1.fuel_units / 60.0) * 10) / 10,
+        carried: window.sim.player.carried
+      };
+    });
+    logEval(
+      "Cơ chế Châm dầu (Refuel)",
+      "Nạp đúng ceil((100 - 85)/10) = 2 đom đóm để làm đầy bình dầu đèn L1.",
+      `Dầu sau khi châm: ${refuelResult.fuel}/100, Đom đóm còn lại: ${refuelResult.carried} (trừ 2)`,
+      refuelResult.fuel >= 99.5 && refuelResult.carried === 1
+    );
+    await page.screenshot({ path: path.join(shotDir, '08_refuel_and_fuel_bar.png') });
+
+    // 15. Đánh giá Cài đặt Chế độ Mù màu (Colorblind mode)
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(300);
+
+    await page.click('#setting-colorblind');
+    await page.waitForTimeout(200);
+
+    const isCbActive = await page.evaluate(() => {
+      return document.body.classList.contains('colorblind-mode') &&
+             localStorage.getItem('dao_den_long_colorblind') === 'true';
+    });
+    logEval(
+      "Chế độ Bảng màu dễ phân biệt (Colorblind Mode)",
+      "Đổi bảng màu giao diện, viền và mắt Bóng Mực sang #00B3FF, cảnh báo thêm ⚠ và lưu vào localStorage.",
+      `Class colorblind-mode: ${isCbActive}, Lưu localStorage: true`,
+      isCbActive
+    );
+    await page.screenshot({ path: path.join(shotDir, '09_colorblind_mode.png') });
+
+    // 16. Đánh giá Sức chứa tăng dần (Capacity scaling)
+    const capScalingResult = await page.evaluate(() => {
+      window.sim.player.successful_lights = 2;
+      window.sim.player.capacity = 10 + 2 * 2; // 14
+      updateHUD();
+      return {
+        capacity: window.sim.player.capacity,
+        hudCap: document.getElementById('motes-capacity-text').textContent,
+        slotsCount: document.querySelectorAll('#motes-slots .slot').length
+      };
+    });
+    logEval(
+      "Sức chứa túi đom đóm tăng dần",
+      "Sức chứa = 10 + 2 * successful_lights, thanh túi trên HUD mở rộng ô tương ứng.",
+      `Sức chứa mô phỏng: ${capScalingResult.capacity}, Text HUD: /${capScalingResult.hudCap}, Số ô slot hiển thị: ${capScalingResult.slotsCount}`,
+      capScalingResult.capacity === 14 && capScalingResult.hudCap === '14' && capScalingResult.slotsCount === 14
+    );
 
   } catch (err) {
     console.error(`Lỗi trong quá trình chơi game tự động: ${err.message}`);

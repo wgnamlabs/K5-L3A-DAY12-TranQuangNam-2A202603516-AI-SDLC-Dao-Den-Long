@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Đảo Đèn Lồng — 3 Đêm Huyền Bí (Phase 2)</title>
+  <title>Đảo Đèn Lồng — Đèn cạn dầu (Phase 3)</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏮</text></svg>">
   <link rel="stylesheet" href="css/style.css">
   <script src="js/vendor/three.min.js"></script>
@@ -54,9 +54,9 @@
         <div><kbd>Esc</kbd> / <kbd>P</kbd> : Tạm dừng</div>
       </div>
 
-      <!-- Motes 10-Slot Inventory Bar -->
+      <!-- Motes Inventory Bar (10-20 slots) -->
       <div class="hud-card motes-bar-card">
-        <span class="stat-label">TÚI ĐOM ĐÓM (<span id="motes-count-text">0</span>/10)</span>
+        <span class="stat-label">TÚI ĐOM ĐÓM (<span id="motes-count-text">0</span>/<span id="motes-capacity-text">10</span>)</span>
         <div id="motes-slots" class="slots-container">
           <div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div>
           <div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div>
@@ -104,6 +104,10 @@
           <label>Độ nhạy chuột:</label>
           <input type="range" id="setting-sens" min="1" max="10" value="5" onchange="saveSettings()">
         </div>
+        <div class="setting-row">
+          <label for="setting-colorblind">Bảng màu dễ phân biệt (Mù màu):</label>
+          <input type="checkbox" id="setting-colorblind" onchange="toggleColorblindSetting()">
+        </div>
       </div>
       <div class="btn-group">
         <button class="btn-primary" onclick="togglePauseGame()">Tiếp tục (Esc)</button>
@@ -115,8 +119,8 @@
   <!-- Night Won Modal -->
   <div id="modal-won" class="modal-overlay">
     <div class="modal-box">
-      <h1 class="modal-title">✨ ĐÊM NAY ĐẢO ĐÃ BỪNG SÁNG!</h1>
-      <p class="modal-desc" id="won-desc">Tất cả ngọn đèn đã được thắp sáng rực rỡ, xua tan lũ Bóng Mực!</p>
+      <h1 class="modal-title">🌅 BÌNH MINH LÓ RẠNG TRÊN ĐẢO!</h1>
+      <p class="modal-desc" id="won-desc">Mây đã kiên cường giữ vững ánh sáng của các Đèn Lớn tới bình minh, xua tan lũ Bóng Mực!</p>
       <div class="modal-stats">
         <div><strong>Điểm đêm này:</strong> <span id="win-score" class="score-counter">0</span></div>
         <div><strong>Tổng điểm tích lũy:</strong> <span id="win-total-score" class="score-counter">0</span></div>
