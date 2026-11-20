@@ -1,0 +1,3 @@
+{"type":"snapshot","tick":0,"sim_tick":0,"state":"playing","time_left_s":300,"score":0,"player":{"pos":[0,0,0],"flames":3,"carried":4},"lanterns":[{"id":"L1","pos":[0,0,22],"lit":false,"deposited":0},{"id":"L2","pos":[20.92,0,6.8],"lit":false,"deposited":0},{"id":"L3","pos":[12.93,0,-17.8],"lit":false,"deposited":0},{"id":"L4","pos":[-12.93,0,-17.8],"lit":false,"deposited":0},{"id":"L5","pos":[-20.92,0,6.8],"lit":false,"deposited":0}],"shades":[{"id":"S1","pos":[0,0,0.5],"state":"chase"}],"motes_active":0,"motes":[]}
+{"type":"event","tick":1,"name":"player_hit","data":{"by":"shade","flames":2,"dropped":2}}
+{"type":"end","ticks":5,"state":"playing","score":0}

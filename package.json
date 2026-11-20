@@ -1,0 +1,20 @@
+{
+  "name": "dao-den-long",
+  "version": "1.0.0",
+  "description": "Đảo Đèn Lồng - Game 3D góc nhìn thứ ba & Headless Test Contract v1.0",
+  "main": "src/headless.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node tests/run_all_tests.js",
+    "headless": "node src/headless.js"
+  },
+  "keywords": [
+    "game",
+    "threejs",
+    "simulation",
+    "headless",
+    "ai-sdlc"
+  ],
+  "author": "2A202603516-TranQuangNam",
+  "license": "MIT"
+}

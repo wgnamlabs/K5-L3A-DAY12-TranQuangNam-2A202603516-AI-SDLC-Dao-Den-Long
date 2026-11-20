@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Đảo Đèn Lồng — 3D Game</title>
+  <link rel="stylesheet" href="css/style.css">
+  <!-- Vendor Three.js (Offline) -->
+  <script src="js/vendor/three.min.js"></script>
+  <!-- Core Simulation Logic (Single Source of Truth) -->
+  <script src="/src/engine/GameSimulation.js"></script>
+  <!-- Audio Synthesizer -->
+  <script src="js/audio.js"></script>
+</head>
+<body>
+  <div id="canvas-container"></div>
+
+  <!-- HUD Overlay -->
+  <div id="hud">
+    <div class="hud-top">
+      <div class="hud-card">
+        <div class="stat-item">
+          <span class="stat-icon">🏮</span>
+          <span>Đèn Lớn:</span>
+          <span id="hud-lanterns" class="lanterns-counter">0 / 5</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-icon">✨</span>
+          <span>Đom đóm:</span>
+          <span id="hud-motes" class="motes-counter">0 / 10</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-icon">🔥</span>
+          <div id="hud-flames" class="flames-list">
+            <span class="flame-icon">🔥</span>
+            <span class="flame-icon">🔥</span>
+            <span class="flame-icon">🔥</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="hud-card">
+        <div class="stat-item">
+          <span class="stat-icon">⏱️</span>
+          <span>Thời gian:</span>
+          <span id="hud-time" class="time-counter">300s</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-icon">🏆</span>
+          <span>Điểm:</span>
+          <span id="hud-score" class="score-counter">0</span>
+        </div>
+      </div>
+    </div>
+
+    <div id="prompt-banner">Nhấn [E] để thắp sáng Đèn Lồng Lớn!</div>
+
+    <div class="hud-bottom">
+      <div class="controls-hint">
+        <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> : Di chuyển Mây</div>
+        <div><kbd>Kéo chuột</kbd> hoặc <kbd>Q</kbd> <kbd>E</kbd> : Xoay camera 3D</div>
+        <div><kbd>Space</kbd> : Tỏa sáng (xua Bóng Mực, tốn 1 đom đóm)</div>
+        <div><kbd>E</kbd> hoặc <kbd>F</kbd> : Thắp đèn khi đứng gần Đèn Lớn</div>
+        <div><kbd>R</kbd> : Chơi lại</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Game Over / Won Modals -->
+  <div id="modal-won" class="modal-overlay">
+    <div class="modal-box">
+      <h1 class="modal-title">🎉 ĐẢO ĐÈN LỒNG BỪNG SÁNG!</h1>
+      <p class="modal-desc">Mây đã thắp sáng trọn vẹn cả 5 Đèn Lồng Lớn. Sương đen đã tan biến và bình minh ấm áp đã trở lại với Đảo Bến!</p>
+      <div class="modal-stats">
+        <div><strong>Điểm số cuối:</strong> <span id="win-score" class="score-counter">0</span></div>
+        <div><strong>Thời gian còn:</strong> <span id="win-time" class="time-counter">0s</span></div>
+      </div>
+      <button class="btn-primary" onclick="restartGame()">Chơi lại (Phím R)</button>
+    </div>
+  </div>
+
+  <div id="modal-lost" class="modal-overlay">
+    <div class="modal-box">
+      <h1 class="modal-title" style="color: #e63946;">SƯƠNG ĐEN ĐÃ NUỐT CHỬNG...</h1>
+      <p id="lost-reason-desc" class="modal-desc">Mây đã kiệt sức trước lũ Bóng Mực. Hãy cẩn thận hơn vào đêm tiếp theo!</p>
+      <div class="modal-stats">
+        <div><strong>Điểm tích lũy:</strong> <span id="lost-score" class="score-counter">0</span></div>
+        <div><strong>Đèn đã thắp:</strong> <span id="lost-lanterns" class="lanterns-counter">0 / 5</span></div>
+      </div>
+      <button class="btn-primary" onclick="restartGame()">Thử lại (Phím R)</button>
+    </div>
+  </div>
+
+  <script src="js/game.js"></script>
+</body>
+</html>
