@@ -547,8 +547,8 @@ function animate(now) {
       let mx = 0, mz = 0;
       if (keys['w'] || keys['arrowup']) mz += 1;
       if (keys['s'] || keys['arrowdown']) mz -= 1;
-      if (keys['a'] || keys['arrowleft']) mx -= 1;
-      if (keys['d'] || keys['arrowright']) mx += 1;
+      if (keys['a'] || keys['arrowleft']) mx += 1;  // A: Sang trái màn hình
+      if (keys['d'] || keys['arrowright']) mx -= 1; // D: Sang phải màn hình
 
       if (keys['q']) camYaw += 0.03;
       if (keys['e']) camYaw -= 0.03;
@@ -669,7 +669,7 @@ function updateHUD() {
   let closestLantern = null;
   for (const l of sim.lanterns) {
     if (!l.lit) {
-      const d = distXZ(l.pos, sim.player.pos);
+      const d = Math.hypot(l.pos[0] - sim.player.pos[0], l.pos[2] - sim.player.pos[2]);
       if (d < closestDist) {
         closestDist = d;
         closestLantern = l;

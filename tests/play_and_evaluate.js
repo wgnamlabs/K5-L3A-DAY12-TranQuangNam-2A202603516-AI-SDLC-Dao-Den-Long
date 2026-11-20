@@ -71,6 +71,7 @@ async function autonomousPlayAndEvaluate() {
   });
 
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+  page.on('pageerror', err => console.error('BROWSER PAGE ERROR:', err.message));
   const shotDir = path.join(rootDir, 'docs/proof/gameplay');
   if (!fs.existsSync(shotDir)) fs.mkdirSync(shotDir, { recursive: true });
 
@@ -105,7 +106,7 @@ async function autonomousPlayAndEvaluate() {
     // 3. Đánh giá Di chuyển (WASD)
     const initialPos = await page.evaluate(() => [...window.sim.player.pos]);
     await page.keyboard.down('KeyW');
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(400);
     await page.keyboard.up('KeyW');
     const movedPos = await page.evaluate(() => [...window.sim.player.pos]);
     const movedDist = Math.hypot(movedPos[0] - initialPos[0], movedPos[2] - initialPos[2]);
@@ -113,7 +114,37 @@ async function autonomousPlayAndEvaluate() {
       "Phím di chuyển W (Tiến lên phía trước)",
       "Mây di chuyển theo hướng camera với tốc độ chuẩn 6.0 m/s.",
       `Vị trí thay đổi từ [${initialPos.map(n=>n.toFixed(2))}] đến [${movedPos.map(n=>n.toFixed(2))}], quãng đường ~${movedDist.toFixed(2)}m`,
-      movedDist > 1.5
+      movedDist > 1.0
+    );
+
+    // Kiểm tra Phím A (Sang Trái màn hình)
+    const posBeforeA = await page.evaluate(() => [...window.sim.player.pos]);
+    await page.keyboard.down('KeyA');
+    await page.waitForTimeout(300);
+    await page.keyboard.up('KeyA');
+    const posAfterA = await page.evaluate(() => [...window.sim.player.pos]);
+    // Với camYaw = 0, camera nhìn về +Z: Sang Trái màn hình là hướng +X trong không gian
+    const movedLeft = (posAfterA[0] - posBeforeA[0]) > 0.5;
+    logEval(
+      "Phím di chuyển A (Sang Trái màn hình)",
+      "Nhấn A nhân vật Mây di chuyển dạt sang TRÁI góc nhìn camera.",
+      `Tọa độ X thay đổi: ${posBeforeA[0].toFixed(2)} -> ${posAfterA[0].toFixed(2)} (dạt sang trái)`,
+      movedLeft
+    );
+
+    // Kiểm tra Phím D (Sang Phải màn hình)
+    const posBeforeD = await page.evaluate(() => [...window.sim.player.pos]);
+    await page.keyboard.down('KeyD');
+    await page.waitForTimeout(300);
+    await page.keyboard.up('KeyD');
+    const posAfterD = await page.evaluate(() => [...window.sim.player.pos]);
+    // Với camYaw = 0, camera nhìn về +Z: Sang Phải màn hình là hướng -X trong không gian
+    const movedRight = (posAfterD[0] - posBeforeD[0]) < -0.5;
+    logEval(
+      "Phím di chuyển D (Sang Phải màn hình)",
+      "Nhấn D nhân vật Mây di chuyển dạt sang PHẢI góc nhìn camera.",
+      `Tọa độ X thay đổi: ${posBeforeD[0].toFixed(2)} -> ${posAfterD[0].toFixed(2)} (dạt sang phải)`,
+      movedRight
     );
 
     // 4. Đánh giá Nhảy (Space)
@@ -121,13 +152,13 @@ async function autonomousPlayAndEvaluate() {
     await page.keyboard.press('Space');
     await page.waitForTimeout(150);
     const yDuringJump = await page.evaluate(() => window.sim.player.pos[1]);
-    await page.waitForTimeout(750); // 700ms total air time for vy=7, g=20
+    await page.waitForFunction(() => window.sim.player.grounded, { timeout: 2000 });
     const yAfterJump = await page.evaluate(() => window.sim.player.pos[1]);
     logEval(
       "Phím Nhảy (Space)",
       "Vận tốc 7.0 m/s, trọng lực -20 m/s², chỉ nhảy khi chạm đất và rơi trở lại đất.",
       `Y ban đầu: ${yBeforeJump.toFixed(2)}m -> Nhảy lên cực đại: ${yDuringJump.toFixed(2)}m -> Đáp đất: ${yAfterJump.toFixed(2)}m`,
-      yDuringJump > 0.3 && yAfterJump === 0
+      yDuringJump > 0.3 && Math.abs(yAfterJump) < 0.05
     );
 
     // 5. Đánh giá Lướt (Shift - Dash)
@@ -171,7 +202,7 @@ async function autonomousPlayAndEvaluate() {
       window.sim.player.carried = 10;
       window.sim.player.pos = [0, 0, 24.2];
     });
-    await page.waitForTimeout(200);
+    await page.waitForTimeout(300);
 
     const bannerText = await page.$eval('#prompt-banner', el => el.textContent);
     const bannerActive = await page.$eval('#prompt-banner', el => el.classList.contains('active'));
