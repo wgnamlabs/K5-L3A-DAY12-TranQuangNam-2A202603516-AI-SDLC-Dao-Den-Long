@@ -14,12 +14,27 @@ let hemiLight, dirLight;
 // Input & Camera tracking
 const keys = {};
 const latchedKeys = { jump: false, dash: false, interact: false, pulse: false };
-let mouseDrag = false;
-let prevMouseX = 0;
+let prevMouseX = null;
+let prevMouseY = null;
 let camYaw = 0;
 let camPitch = 0.35;
 let camDist = 9.0;
 let mouseSensitivity = 5;
+
+function requestGamePointerLock() {
+  try {
+    if (renderer && renderer.domElement && renderer.domElement.requestPointerLock) {
+      const p = renderer.domElement.requestPointerLock();
+      if (p && p.catch) p.catch(() => {});
+    }
+  } catch (err) {}
+}
+
+function exitGamePointerLock() {
+  try {
+    if (document.exitPointerLock) document.exitPointerLock();
+  } catch (err) {}
+}
 
 function init() {
   const container = document.getElementById('canvas-container');
@@ -74,26 +89,66 @@ function init() {
   window.addEventListener('resize', onWindowResize);
   window.addEventListener('keydown', onKeyDown);
   window.addEventListener('keyup', onKeyUp);
+
+  // Click canvas to capture pointer lock for seamless mouse-look
+  renderer.domElement.addEventListener('click', () => {
+    if (sim && sim.state === 'playing') {
+      if (document.pointerLockElement !== renderer.domElement) {
+        requestGamePointerLock();
+      }
+    }
+  });
+
   window.addEventListener('mousedown', (e) => {
-    if (e.button === 0) {
-      mouseDrag = true;
-      prevMouseX = e.clientX;
-    } else if (e.button === 2) {
+    window.soundFx.init();
+    if (e.button === 2) {
       // Right click to Dash
       keys['shift'] = true;
       setTimeout(() => { keys['shift'] = false; }, 50);
     }
-    window.soundFx.init();
   });
-  window.addEventListener('mouseup', () => { mouseDrag = false; });
+
   window.addEventListener('contextmenu', (e) => e.preventDefault());
+
+  // Free mouse look: camera rotates wherever the mouse moves without holding any buttons
   window.addEventListener('mousemove', (e) => {
-    if (mouseDrag) {
-      const deltaX = e.clientX - prevMouseX;
-      camYaw -= deltaX * 0.0012 * mouseSensitivity;
-      prevMouseX = e.clientX;
+    if (!sim || sim.state !== 'playing') {
+      prevMouseX = null;
+      prevMouseY = null;
+      return;
     }
+
+    let dx = 0;
+    let dy = 0;
+
+    if (document.pointerLockElement === renderer.domElement) {
+      dx = e.movementX || 0;
+      dy = e.movementY || 0;
+    } else {
+      // Direct mouse tracking across window
+      if (prevMouseX !== null && prevMouseY !== null) {
+        dx = e.clientX - prevMouseX;
+        dy = e.clientY - prevMouseY;
+      }
+      prevMouseX = e.clientX;
+      prevMouseY = e.clientY;
+    }
+
+    // Smoothly clamp large single-frame sweeps
+    dx = Math.max(-120, Math.min(120, dx));
+    dy = Math.max(-120, Math.min(120, dy));
+
+    const sensFactor = 0.0015 * (mouseSensitivity / 5);
+    camYaw -= dx * sensFactor;
+    camPitch += dy * sensFactor;
+    // Clamp pitch between ~3° and ~72° for third-person perspective
+    camPitch = Math.max(0.05, Math.min(1.25, camPitch));
   });
+
+  // Mouse wheel to zoom camera distance
+  window.addEventListener('wheel', (e) => {
+    camDist = Math.max(4.0, Math.min(16.0, camDist + e.deltaY * 0.005));
+  }, { passive: true });
 
   showNightIntro(1);
   lastTime = performance.now();
@@ -101,6 +156,7 @@ function init() {
 }
 
 function showNightIntro(nightNum) {
+  exitGamePointerLock();
   currentNight = nightNum;
   const names = {
     1: "ĐÊM 1 — ĐẢO BẾN",
@@ -122,6 +178,7 @@ function showNightIntro(nightNum) {
 function startNightGame() {
   document.getElementById('modal-intro').classList.remove('active');
   window.soundFx.init();
+  requestGamePointerLock();
 
   sim = new GameSimulation({
     seed: Math.floor(Math.random() * 100000),
@@ -476,10 +533,12 @@ function togglePauseGame() {
     sim.isPaused = true;
     sim.state = "paused";
     modalPause.classList.add('active');
+    exitGamePointerLock();
   } else {
     sim.isPaused = false;
     sim.state = "playing";
     modalPause.classList.remove('active');
+    requestGamePointerLock();
   }
 }
 
@@ -496,6 +555,7 @@ function nextNight() {
   if (currentNight < 3) {
     showNightIntro(currentNight + 1);
   } else {
+    exitGamePointerLock();
     document.getElementById('dawn-final-score').textContent = campaignScore;
     document.getElementById('modal-dawn').classList.add('active');
   }
@@ -583,6 +643,7 @@ function animate(now) {
         } else if (ev.name === 'dash') window.soundFx.playDash();
         else if (ev.name === 'player_hit') window.soundFx.playHit();
         else if (ev.name === 'game_over') {
+          exitGamePointerLock();
           if (ev.data.result === 'won') {
             window.soundFx.playWon();
             document.getElementById('win-score').textContent = sim.score;
