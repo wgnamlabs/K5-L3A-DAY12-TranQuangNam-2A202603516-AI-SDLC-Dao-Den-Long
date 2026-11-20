@@ -6,6 +6,23 @@
 
 ---
 
+## 🎬 Video Demo Sản Phẩm (Dưới 5 Phút)
+
+> 📹 **Thời lượng:** `03:36` (< 5 phút — đáp ứng tiêu chí Rubric G & SUBMISSION.md)  
+> 🔗 **Đường dẫn xem & tải video:**  
+> - **Tải / xem trực tiếp trong repository:** [docs/demo/game.mp4](docs/demo/game.mp4) *(hoặc [public/game.mp4](public/game.mp4))*  
+> - **Đính kèm GitHub Release v1.0.0:** [Tải tại GitHub Release v1.0.0](https://github.com/wgnamlabs/K5-L3A-DAY12-TranQuangNam-2A202603516-AI-SDLC-Dao-Den-Long/releases/tag/v1.0.0)  
+> - **Xem qua máy chủ Web cục bộ:** [http://localhost:3000/game.mp4](http://localhost:3000/game.mp4) (hoặc port 3001)  
+>
+> **Nội dung video trình diễn gồm:**  
+> 1. **Chơi trực tiếp gameplay 3D:** Điều khiển nhân vật Mây, di chuyển trên các đảo, nhảy qua hố sâu, nhặt đom đóm, lướt qua bục nhảy tốc độ cao, thắp sáng đèn lồng, châm dầu và kỹ năng Tỏa Sáng (Pulse) đẩy lùi Bóng Mực.  
+> 2. **Kiểm chứng bộ test tự động:** Chạy `npm test` đạt 28/28 test suite (52 assertions passed 100%).  
+> 3. **Kiểm chứng chế độ Headless Contract v1.3:** Chạy `node src/headless.js` xuất file log `.jsonl` tất định.  
+> 4. **Đo hiệu năng & độ ổn định:** Chạy tự động `benchmark.js` (60 FPS ổn định) và `soak.js` (10 Đêm liên tục, không crash, không rò rỉ RAM).  
+> 5. **Harness AI & Lịch sử Git:** Lướt qua `AGENTS.md`, nhật ký AI và lịch sử commit theo chuẩn qua cả 4 phase.
+
+---
+
 ## 1. Hướng dẫn Cài đặt & Khởi chạy (≤ 3 lệnh)
 
 Yêu cầu môi trường: Đã cài đặt **Node.js** (>= 18.x).
@@ -147,7 +164,9 @@ node src/headless.js --export-leaderboard leaderboard_export.json
     │   ├── adr-001-lantern-fuel-and-dawn-win.md
     │   ├── ai-log.md           # Nhật ký AI đồng hành Phase 1–4
     │   └── retro-sdlc.md       # Báo cáo hồi tưởng quy trình SDLC
-    └── proof/
-        ├── phase-1.md, phase-2.md, phase-3.md, phase-4.md
-        └── gameplay/           # Ảnh chụp minh họa màn hình game
+    ├── proof/
+    │   ├── phase-1.md, phase-2.md, phase-3.md, phase-4.md
+    │   └── gameplay/           # Ảnh chụp minh họa màn hình game
+    └── demo/
+        └── game.mp4            # Video demo gameplay & kiểm chứng (< 5 phút)
 ```

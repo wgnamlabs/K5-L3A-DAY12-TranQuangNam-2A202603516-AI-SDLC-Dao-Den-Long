@@ -2,3 +2,7 @@ node_modules/
 .DS_Store
 Thumbs.db
 scratch/
+
+# Video files (>100MB đính kèm GitHub Release v1.0.0 theo SUBMISSION.md)
+*.mp4
+
