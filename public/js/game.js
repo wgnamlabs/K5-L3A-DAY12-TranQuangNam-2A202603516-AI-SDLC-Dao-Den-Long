@@ -901,59 +901,241 @@ function buildLanterns() {
   lanternMeshes.forEach(m => scene.remove(m));
   lanternMeshes = [];
 
+  const stoneMat = new THREE.MeshStandardMaterial({ color: 0x6E685E, roughness: 0.9 });
+  const woodMat = new THREE.MeshStandardMaterial({ color: 0x482E1A, roughness: 0.85 });
+  const roofMat = new THREE.MeshStandardMaterial({ color: 0x2A1B14, roughness: 0.75 });
+  const goldMat = new THREE.MeshStandardMaterial({ color: 0xD4A034, metalness: 0.6, roughness: 0.4 });
+  const tasselMat = new THREE.MeshStandardMaterial({ color: 0xC8102E, roughness: 0.6 });
+
+  // Soft aura texture for lantern glow
+  const auraCanvas = document.createElement('canvas');
+  auraCanvas.width = 64;
+  auraCanvas.height = 64;
+  const actx = auraCanvas.getContext('2d');
+  const agrad = actx.createRadialGradient(32, 32, 4, 32, 32, 30);
+  agrad.addColorStop(0, 'rgba(255, 200, 110, 0.75)');
+  agrad.addColorStop(0.4, 'rgba(255, 140, 50, 0.35)');
+  agrad.addColorStop(1, 'rgba(255, 100, 30, 0)');
+  actx.fillStyle = agrad;
+  actx.fillRect(0, 0, 64, 64);
+  const auraTex = new THREE.CanvasTexture(auraCanvas);
+
+  // Soft ground safe ring texture
+  const ringCanvas = document.createElement('canvas');
+  ringCanvas.width = 128;
+  ringCanvas.height = 128;
+  const rctx = ringCanvas.getContext('2d');
+  rctx.clearRect(0, 0, 128, 128);
+  rctx.strokeStyle = 'rgba(242, 193, 78, 0.4)';
+  rctx.lineWidth = 6;
+  rctx.beginPath();
+  rctx.arc(64, 64, 58, 0, Math.PI * 2);
+  rctx.stroke();
+  const ringTex = new THREE.CanvasTexture(ringCanvas);
+
   sim.lanterns.forEach((l) => {
     const lGroup = new THREE.Group();
 
-    // Wooden base (#6B4A2F)
-    const baseGeo = new THREE.CylinderGeometry(0.35, 0.55, 2.8, 12);
-    const baseMat = new THREE.MeshStandardMaterial({ color: 0x6B4A2F, roughness: 0.9 });
-    const base = new THREE.Mesh(baseGeo, baseMat);
-    base.position.y = 1.4;
-    base.castShadow = true;
-    lGroup.add(base);
+    // 1. Carved stone octagonal base plinth
+    const basePlinth = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.95, 0.4, 8), stoneMat);
+    basePlinth.position.y = 0.2;
+    basePlinth.castShadow = true;
+    basePlinth.receiveShadow = true;
+    lGroup.add(basePlinth);
 
-    // Roof
-    const roofGeo = new THREE.ConeGeometry(1.2, 0.5, 4);
-    roofGeo.rotateY(Math.PI / 4);
-    const roofMat = new THREE.MeshStandardMaterial({ color: 0x362312, roughness: 0.7 });
-    const roof = new THREE.Mesh(roofGeo, roofMat);
-    roof.position.y = 3.1;
-    lGroup.add(roof);
+    const baseUpper = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.72, 0.3, 8), stoneMat);
+    baseUpper.position.y = 0.5;
+    baseUpper.castShadow = true;
+    lGroup.add(baseUpper);
 
-    // Lantern Core (#5B5F6E when unlit, #FFE9B0 when lit)
-    const coreGeo = new THREE.CylinderGeometry(0.5, 0.5, 0.9, 12);
-    const coreMat = new THREE.MeshStandardMaterial({
-      color: 0x5B5F6E,
-      emissive: 0x111115,
-      roughness: 0.5
-    });
-    const core = new THREE.Mesh(coreGeo, coreMat);
-    core.position.y = 2.4;
-    lGroup.add(core);
+    // 2. Ancient wooden pillar with brackets
+    const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.36, 2.0, 8), woodMat);
+    pillar.position.y = 1.6;
+    pillar.castShadow = true;
+    lGroup.add(pillar);
 
-    const pLight = new THREE.PointLight(0xFFB347, 0, 18);
-    pLight.position.y = 2.6;
+    // Pillar capital / Bệ đỡ đèn
+    const capital = new THREE.Mesh(new THREE.CylinderGeometry(0.65, 0.32, 0.35, 8), woodMat);
+    capital.position.y = 2.65;
+    capital.castShadow = true;
+    lGroup.add(capital);
+
+    // 3. Lantern Body (Varies by Night)
+    let core;
+    const bodyHolder = new THREE.Group();
+    bodyHolder.position.y = 3.35;
+    lGroup.add(bodyHolder);
+
+    if (currentNight === 2) {
+      // Đêm 2: Đèn Hoa Sen (Lotus Lantern)
+      const lotusCoreGeo = new THREE.CylinderGeometry(0.62, 0.45, 1.1, 10);
+      const coreMat = new THREE.MeshStandardMaterial({
+        color: 0x5B5F6E,
+        emissive: 0x111115,
+        roughness: 0.4
+      });
+      core = new THREE.Mesh(lotusCoreGeo, coreMat);
+      bodyHolder.add(core);
+
+      // Lotus petals around bottom
+      const petalMat = new THREE.MeshStandardMaterial({ color: 0xC8102E, roughness: 0.7 });
+      for (let p = 0; p < 8; p++) {
+        const ang = (p / 8) * Math.PI * 2;
+        const petal = new THREE.Mesh(new THREE.ConeGeometry(0.25, 0.6, 4), petalMat);
+        petal.position.set(Math.cos(ang) * 0.55, -0.2, Math.sin(ang) * 0.55);
+        petal.rotation.z = Math.cos(ang) * 0.4;
+        petal.rotation.x = -Math.sin(ang) * 0.4;
+        bodyHolder.add(petal);
+      }
+    } else if (currentNight === 3) {
+      // Đêm 3: Đèn Tháp Chuông Đồng (Bronze Bell Tower Lantern)
+      const bellCoreGeo = new THREE.CylinderGeometry(0.55, 0.7, 1.2, 8);
+      const coreMat = new THREE.MeshStandardMaterial({
+        color: 0x5B5F6E,
+        emissive: 0x111115,
+        metalness: 0.4,
+        roughness: 0.5
+      });
+      core = new THREE.Mesh(bellCoreGeo, coreMat);
+      bodyHolder.add(core);
+
+      // Bronze bell suspended inside
+      const bell = new THREE.Mesh(new THREE.ConeGeometry(0.24, 0.45, 10), goldMat);
+      bell.position.y = -0.15;
+      bodyHolder.add(bell);
+    } else {
+      // Đêm 1: Đèn Lồng Trụ Lục Giác Truyền Thống
+      const octGeo = new THREE.CylinderGeometry(0.58, 0.58, 1.15, 8);
+      const coreMat = new THREE.MeshStandardMaterial({
+        color: 0x5B5F6E,
+        emissive: 0x111115,
+        roughness: 0.45
+      });
+      core = new THREE.Mesh(octGeo, coreMat);
+      bodyHolder.add(core);
+
+      // Vertical bamboo ribs
+      for (let r = 0; r < 8; r++) {
+        const ang = (r / 8) * Math.PI * 2;
+        const rib = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.18, 4), woodMat);
+        rib.position.set(Math.cos(ang) * 0.59, 0, Math.sin(ang) * 0.59);
+        bodyHolder.add(rib);
+      }
+    }
+
+    // 4. Pagoda curved roof with flared corners
+    const roofHolder = new THREE.Group();
+    roofHolder.position.y = 4.05;
+    lGroup.add(roofHolder);
+
+    const roofMain = new THREE.Mesh(new THREE.ConeGeometry(1.3, 0.55, 6), roofMat);
+    roofMain.position.y = 0.25;
+    roofMain.castShadow = true;
+    roofHolder.add(roofMain);
+
+    // Gold pinnacle finial
+    const pinnacle = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.08, 0.45, 6), goldMat);
+    pinnacle.position.y = 0.65;
+    roofHolder.add(pinnacle);
+
+    // Hanging corner silk tassels
+    const tassels = [];
+    for (let t = 0; t < 4; t++) {
+      const tang = (t / 4) * Math.PI * 2 + Math.PI / 4;
+      const tasMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.05, 0.35, 6), tasselMat);
+      tasMesh.position.set(Math.cos(tang) * 1.05, -0.1, Math.sin(tang) * 1.05);
+      roofHolder.add(tasMesh);
+      tassels.push(tasMesh);
+    }
+
+    // 5. Illumination PointLight
+    const pLight = new THREE.PointLight(0xFFA533, 0, 20);
+    pLight.position.set(0, 3.4, 0);
+    pLight.castShadow = true;
+    pLight.shadow.mapSize.width = 512;
+    pLight.shadow.mapSize.height = 512;
+    pLight.shadow.bias = -0.002;
     lGroup.add(pLight);
 
-    // Floating Fuel Bar (Phase 3)
-    const fuelBarGroup = new THREE.Group();
-    fuelBarGroup.position.set(0, 3.8, 0);
+    // 6. Glow aura billboard plane
+    const auraMesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(3.6, 3.6),
+      new THREE.MeshBasicMaterial({
+        map: auraTex,
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        opacity: 0
+      })
+    );
+    auraMesh.position.set(0, 3.4, 0);
+    lGroup.add(auraMesh);
 
-    const barBgGeo = new THREE.PlaneGeometry(1.2, 0.16);
-    const barBgMat = new THREE.MeshBasicMaterial({ color: 0x120A1A, side: THREE.DoubleSide });
-    const barBg = new THREE.Mesh(barBgGeo, barBgMat);
+    // 7. Ground Safe Zone Luminous Halo
+    const groundHalo = new THREE.Mesh(
+      new THREE.PlaneGeometry(12.5, 12.5),
+      new THREE.MeshBasicMaterial({
+        map: ringTex,
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        opacity: 0
+      })
+    );
+    groundHalo.rotation.x = -Math.PI / 2;
+    groundHalo.position.y = 0.04;
+    lGroup.add(groundHalo);
+
+    // 8. Orbiting Guardian Fireflies
+    const lanternFireflies = [];
+    const lfGeo = new THREE.SphereGeometry(0.05, 6, 6);
+    const lfMat = new THREE.MeshBasicMaterial({ color: 0xFFF275 });
+    for (let f = 0; f < 4; f++) {
+      const ff = new THREE.Mesh(lfGeo, lfMat);
+      ff.visible = false;
+      lGroup.add(ff);
+      lanternFireflies.push(ff);
+    }
+
+    // 9. Floating Bamboo-Framed Fuel Bar Billboard
+    const fuelBarGroup = new THREE.Group();
+    fuelBarGroup.position.set(0, 4.9, 0);
+
+    const barBg = new THREE.Mesh(
+      new THREE.PlaneGeometry(1.3, 0.22),
+      new THREE.MeshBasicMaterial({ color: 0x140E1E, side: THREE.DoubleSide })
+    );
     fuelBarGroup.add(barBg);
 
-    const barFillGeo = new THREE.PlaneGeometry(1.16, 0.12);
+    const barFrame = new THREE.Mesh(
+      new THREE.PlaneGeometry(1.36, 0.28),
+      new THREE.MeshBasicMaterial({ color: 0xD4A034, side: THREE.DoubleSide, wireframe: true })
+    );
+    barFrame.position.z = -0.01;
+    fuelBarGroup.add(barFrame);
+
     const barFillMat = new THREE.MeshBasicMaterial({ color: 0x00E5FF, side: THREE.DoubleSide });
-    const barFill = new THREE.Mesh(barFillGeo, barFillMat);
+    const barFill = new THREE.Mesh(new THREE.PlaneGeometry(1.22, 0.14), barFillMat);
     barFill.position.z = 0.01;
     fuelBarGroup.add(barFill);
 
     lGroup.add(fuelBarGroup);
 
     lGroup.position.set(l.pos[0], l.pos[1], l.pos[2]);
-    lGroup.userData = { core, pLight, lanternId: l.id, fuelBarGroup, barFill, barFillMat };
+    lGroup.userData = {
+      core,
+      bodyHolder,
+      roofHolder,
+      tassels,
+      pLight,
+      auraMesh,
+      groundHalo,
+      lanternFireflies,
+      lanternId: l.id,
+      fuelBarGroup,
+      barFill,
+      barFillMat
+    };
 
     scene.add(lGroup);
     lanternMeshes.push(lGroup);
@@ -1653,12 +1835,43 @@ function renderVisuals(time) {
         mesh.userData.fuelBarGroup.visible = true;
         const pct = Math.max(0, Math.min(1.0, fuelVal / 100.0));
         mesh.userData.barFill.scale.x = pct;
-        mesh.userData.barFill.position.x = -0.58 * (1.0 - pct);
+        mesh.userData.barFill.position.x = -0.61 * (1.0 - pct);
+
+        // Aura and Ground Halo
+        if (mesh.userData.auraMesh) {
+          mesh.userData.auraMesh.visible = true;
+          mesh.userData.auraMesh.quaternion.copy(camera.quaternion);
+          mesh.userData.auraMesh.material.opacity = (isLowFuel ? 0.4 : 0.75) + Math.sin(time * 5) * 0.12;
+        }
+
+        if (mesh.userData.groundHalo) {
+          mesh.userData.groundHalo.visible = true;
+          mesh.userData.groundHalo.material.opacity = (isLowFuel ? 0.2 : 0.42) + Math.sin(time * 3) * 0.08;
+          mesh.userData.groundHalo.material.color.setHex(isLowFuel ? (isColorblind ? 0xFFFFFF : 0xFF5A5F) : 0xF2C14E);
+        }
+
+        // Orbiting guardian fireflies
+        if (mesh.userData.lanternFireflies) {
+          mesh.userData.lanternFireflies.forEach((ff, fIdx) => {
+            ff.visible = true;
+            const fAng = time * 1.5 + (fIdx / 4) * Math.PI * 2;
+            const fr = 1.1 + Math.sin(time * 2 + fIdx) * 0.2;
+            ff.position.set(Math.cos(fAng) * fr, 3.4 + Math.sin(time * 3 + fIdx * 1.2) * 0.35, Math.sin(fAng) * fr);
+          });
+        }
+
+        // Tassels subtle sway
+        if (mesh.userData.tassels) {
+          mesh.userData.tassels.forEach((t, tIdx) => {
+            t.rotation.x = Math.sin(time * 2 + tIdx) * 0.08;
+            t.rotation.z = Math.cos(time * 1.8 + tIdx) * 0.08;
+          });
+        }
 
         if (blinkOn) {
           mesh.userData.core.material.color.setHex(0xFFB347);
-          mesh.userData.core.material.emissive.setHex(isLowFuel ? (isColorblind ? 0xFFFFFF : 0xFF5A5F) : 0xFFE9B0);
-          mesh.userData.pLight.intensity = (isLowFuel ? 1.4 : 2.2) + Math.sin(time * 6) * 0.3;
+          mesh.userData.core.material.emissive.setHex(isLowFuel ? (isColorblind ? 0xFFFFFF : 0xFF5A5F) : 0xFF9E2C);
+          mesh.userData.pLight.intensity = (isLowFuel ? 1.6 : 2.5) + Math.sin(time * 6) * 0.3;
           mesh.userData.barFillMat.color.setHex(isLowFuel ? (isColorblind ? 0xFFFFFF : 0xFF5A5F) : 0x00E5FF);
         } else {
           mesh.userData.core.material.color.setHex(0x5B5F6E);
@@ -1667,9 +1880,14 @@ function renderVisuals(time) {
           mesh.userData.barFillMat.color.setHex(0x222222);
         }
       } else {
-        // Đèn tắt xẹp 20% và giấy có vết rách tối
-        mesh.scale.set(1.0, 0.8, 1.0);
+        // Đèn tắt xẹp nhẹ và nguội lạnh
+        mesh.scale.set(1.0, 0.85, 1.0);
         mesh.userData.fuelBarGroup.visible = false;
+        if (mesh.userData.auraMesh) mesh.userData.auraMesh.visible = false;
+        if (mesh.userData.groundHalo) mesh.userData.groundHalo.visible = false;
+        if (mesh.userData.lanternFireflies) {
+          mesh.userData.lanternFireflies.forEach(ff => { ff.visible = false; });
+        }
         mesh.userData.core.material.color.setHex(0x353842);
         mesh.userData.core.material.emissive.setHex(0x0A0A0E);
         mesh.userData.pLight.intensity = 0;
