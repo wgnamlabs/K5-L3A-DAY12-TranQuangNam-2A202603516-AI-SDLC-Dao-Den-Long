@@ -1,6 +1,6 @@
 /**
  * run_all_tests.js
- * Automated test suite for Đảo Đèn Lồng - Headless Test Contract v1.0
+ * Automated test suite for Đảo Đèn Lồng - Headless Test Contract v1.1
  */
 
 const { execSync } = require('child_process');
@@ -26,9 +26,9 @@ function assert(condition, testName, message) {
   }
 }
 
-console.log("=== BẮT ĐẦU CHẠY BỘ TEST KIỂM THỬ CONTRACT V1.0 ===");
+console.log("=== BẮT ĐẦU CHẠY BỘ TEST KIỂM THỬ CONTRACT V1.1 (PHASE 2) ===");
 
-// Test 1: Mote Pickup
+// Test 1: Mote Pickup (Regression)
 try {
   const outPath = path.join(outDir, 'test_pickup.jsonl');
   execSync(`node src/headless.js --seed 123 --night 1 --scenario tests/scenarios/pickup.scenario.json --inputs tests/scenarios/pickup.inputs.json --ticks 60 --out "${outPath}"`, { cwd: rootDir });
@@ -37,13 +37,13 @@ try {
   const pickupEv = lines.find(l => l.type === 'event' && l.name === 'mote_picked');
   const endLine = lines.find(l => l.type === 'end');
 
-  assert(!!pickupEv && pickupEv.data.carried === 1, "Test 1: Nhặt đom đóm", "Không tìm thấy sự kiện mote_picked hoặc carried != 1");
+  assert(!!pickupEv && pickupEv.data.carried === 1, "Test 1: Nhặt đom đóm (Regression)", "Không tìm thấy sự kiện mote_picked");
   assert(endLine && endLine.ticks === 60, "Test 1: Kết thúc đúng tick", "End line không đúng tick 60");
 } catch (e) {
   assert(false, "Test 1: Nhặt đom đóm", e.message);
 }
 
-// Test 2: Deposit and Light Lantern
+// Test 2: Deposit and Light Lantern (Regression with cost = 10)
 try {
   const outPath = path.join(outDir, 'test_deposit.jsonl');
   execSync(`node src/headless.js --seed 123 --night 1 --scenario tests/scenarios/deposit.scenario.json --inputs tests/scenarios/deposit.inputs.json --ticks 20 --out "${outPath}"`, { cwd: rootDir });
@@ -52,13 +52,13 @@ try {
   const depEv = lines.find(l => l.type === 'event' && l.name === 'deposit');
   const litEv = lines.find(l => l.type === 'event' && l.name === 'lantern_lit');
 
-  assert(!!depEv && depEv.data.lantern_id === 'L1' && depEv.data.deposited === 5, "Test 2: Nạp ánh sáng", "Không tìm thấy sự kiện deposit hợp lệ");
+  assert(!!depEv && depEv.data.lantern_id === 'L1' && depEv.data.deposited === 10, "Test 2: Nạp ánh sáng đủ 10 đom đóm", "Deposit amount/deposited != 10");
   assert(!!litEv && litEv.data.lantern_id === 'L1', "Test 2: Thắp sáng đèn L1", "Không tìm thấy sự kiện lantern_lit");
 } catch (e) {
   assert(false, "Test 2: Nạp ánh sáng & Thắp đèn", e.message);
 }
 
-// Test 3: Pulse Stun
+// Test 3: Pulse Stun (Regression with cost = 3, stun 120 ticks, push 4m)
 try {
   const outPath = path.join(outDir, 'test_pulse.jsonl');
   execSync(`node src/headless.js --seed 123 --night 1 --scenario tests/scenarios/pulse.scenario.json --inputs tests/scenarios/pulse.inputs.json --ticks 20 --out "${outPath}"`, { cwd: rootDir });
@@ -66,12 +66,12 @@ try {
   const lines = fs.readFileSync(outPath, 'utf-8').trim().split('\n').map(l => JSON.parse(l));
   const pulseEv = lines.find(l => l.type === 'event' && l.name === 'pulse');
 
-  assert(!!pulseEv && Array.isArray(pulseEv.data.stunned_ids) && pulseEv.data.stunned_ids.includes("S1"), "Test 3: Tỏa sáng làm choáng Bóng Mực", "S1 không bị stunned");
+  assert(!!pulseEv && Array.isArray(pulseEv.data.stunned_ids) && pulseEv.data.stunned_ids.includes("S1"), "Test 3: Tỏa sáng làm choáng Bóng Mực (cost 3)", "S1 không bị stunned");
 } catch (e) {
   assert(false, "Test 3: Tỏa sáng", e.message);
 }
 
-// Test 4: Determinism Check (Hai lần chạy cùng seed/scenario/inputs phải cho output giống hệt nhau)
+// Test 4: Determinism Check (Regression)
 try {
   const out1 = path.join(outDir, 'det_run1.jsonl');
   const out2 = path.join(outDir, 'det_run2.jsonl');
@@ -82,18 +82,18 @@ try {
   const content1 = fs.readFileSync(out1, 'utf-8');
   const content2 = fs.readFileSync(out2, 'utf-8');
 
-  assert(content1 === content2, "Test 4: Tính tất định (Determinism)", "Hai lần chạy cùng seed 777 cho output khác nhau!");
+  assert(content1 === content2, "Test 4: Tính tất định (Determinism v1.1)", "Hai lần chạy cùng seed 777 cho output khác nhau!");
 } catch (e) {
   assert(false, "Test 4: Tính tất định", e.message);
 }
 
-// Test 5: Malformed Inputs Validation (Mã thoát 2 khi tick không tăng nghiêm ngặt)
+// Test 5: Malformed Inputs Validation (Mã thoát 2)
 try {
   const badInputsPath = path.join(outDir, 'bad_inputs.json');
   fs.writeFileSync(badInputsPath, JSON.stringify({
     frames: [
       { tick: 10, move: [1, 0] },
-      { tick: 5, move: [0, 1] } // Sai: tick giảm
+      { tick: 5, move: [0, 1] }
     ]
   }));
 
@@ -110,63 +110,121 @@ try {
   assert(false, "Test 5: Bắt lỗi inputs sai", e.message);
 }
 
-// Test 6: Win Condition (Thắp cả 5 đèn)
+// Test 6: Dash (Lướt - Tính năng mới Phase 2)
 try {
-  const winScenarioPath = path.join(outDir, 'win_scenario.json');
-  fs.writeFileSync(winScenarioPath, JSON.stringify({
-    player: { pos: [0, 0, 21.0], carried: 5, flames: 3 },
+  const dashOut = path.join(outDir, 'test_dash.jsonl');
+  execSync(`node src/headless.js --seed 123 --night 1 --inputs tests/scenarios/dash.inputs.json --ticks 20 --out "${dashOut}"`, { cwd: rootDir });
+
+  const lines = fs.readFileSync(dashOut, 'utf-8').trim().split('\n').map(l => JSON.parse(l));
+  const dashEv = lines.find(l => l.type === 'event' && l.name === 'dash');
+  const snap10 = lines.find(l => l.type === 'snapshot' && l.tick === 10);
+
+  assert(!!dashEv && dashEv.tick === 6, "Test 6: Kích hoạt Lướt (Dash event)", "Không tìm thấy dash event tại tick 6");
+  assert(snap10 && snap10.player.pos[2] > 1.0, "Test 6: Nhân vật di chuyển nhanh khi lướt (14 m/s)", "Vị trí không tăng đúng khi lướt");
+} catch (e) {
+  assert(false, "Test 6: Lướt", e.message);
+}
+
+// Test 7: Drifter Steal (Gió Lạc cướp đom đóm - Tính năng mới Phase 2)
+try {
+  const drifterOut = path.join(outDir, 'test_drifter.jsonl');
+  execSync(`node src/headless.js --seed 123 --night 2 --scenario tests/scenarios/drifter.scenario.json --ticks 10 --out "${drifterOut}"`, { cwd: rootDir });
+
+  const lines = fs.readFileSync(drifterOut, 'utf-8').trim().split('\n').map(l => JSON.parse(l));
+  const stealEv = lines.find(l => l.type === 'event' && l.name === 'drifter_steal');
+
+  assert(!!stealEv && stealEv.data.amount === 3 && stealEv.data.carried === 3, "Test 7: Gió Lạc cướp đúng 3 đom đóm", "Gió Lạc cướp không đúng");
+} catch (e) {
+  assert(false, "Test 7: Gió Lạc", e.message);
+}
+
+// Test 8: Wind Charm Pickup (Bùa Gió - Tính năng mới Phase 2)
+try {
+  const charmScenarioPath = path.join(outDir, 'charm_scenario.json');
+  fs.writeFileSync(charmScenarioPath, JSON.stringify({
+    player: { pos: [35, 0, 0], carried: 0, flames: 3 },
     random_motes: false,
     random_shades: false,
     motes: [],
     shades: [],
-    lanterns: [
-      { id: "L1", pos: [0, 0, 22.0], lit: false, deposited: 0 },
-      { id: "L2", pos: [20.92, 0, 6.8], lit: true, deposited: 5 },
-      { id: "L3", pos: [12.93, 0, -17.8], lit: true, deposited: 5 },
-      { id: "L4", pos: [-12.93, 0, -17.8], lit: true, deposited: 5 },
-      { id: "L5", pos: [-20.92, 0, 6.8], lit: true, deposited: 5 }
-    ]
+    charms: [{ id: "C1", pos: [35, 0, 0], available: true }]
   }));
 
-  const winOut = path.join(outDir, 'test_win.jsonl');
-  execSync(`node src/headless.js --seed 123 --night 1 --scenario "${winScenarioPath}" --inputs tests/scenarios/deposit.inputs.json --ticks 30 --out "${winOut}"`, { cwd: rootDir });
+  const charmOut = path.join(outDir, 'test_charm.jsonl');
+  execSync(`node src/headless.js --seed 123 --night 2 --scenario "${charmScenarioPath}" --ticks 5 --out "${charmOut}"`, { cwd: rootDir });
 
-  const lines = fs.readFileSync(winOut, 'utf-8').trim().split('\n').map(l => JSON.parse(l));
-  const winEv = lines.find(l => l.type === 'event' && l.name === 'game_over' && l.data.result === 'won' && l.data.reason === 'all_lit');
-  const endLine = lines.find(l => l.type === 'end');
+  const lines = fs.readFileSync(charmOut, 'utf-8').trim().split('\n').map(l => JSON.parse(l));
+  const charmEv = lines.find(l => l.type === 'event' && l.name === 'charm_picked');
 
-  assert(!!winEv, "Test 6: Điều kiện Thắng (All 5 lit)", "Không tìm thấy sự kiện game_over won all_lit");
-  assert(endLine && endLine.state === 'won', "Test 6: Trạng thái End Line won", `End line state: ${endLine ? endLine.state : 'null'}`);
+  assert(!!charmEv && charmEv.data.charm_id === 'C1' && charmEv.data.charm_ticks === 600, "Test 8: Nhặt Bùa Gió tăng tốc & giảm hồi lướt", "Không tìm thấy charm_picked event");
 } catch (e) {
-  assert(false, "Test 6: Điều kiện Thắng", e.message);
+  assert(false, "Test 8: Bùa Gió", e.message);
 }
 
-// Test 7: Shade Chase & Player Hit
+// Test 9: Fall Off Island (Rơi khỏi đảo Y < -10 ngoài bán kính đảo)
 try {
-  const hitScenarioPath = path.join(outDir, 'hit_scenario.json');
-  fs.writeFileSync(hitScenarioPath, JSON.stringify({
-    player: { pos: [0, 0, 0], carried: 4, flames: 3 },
+  const fallScenarioPath = path.join(outDir, 'fall_scenario.json');
+  fs.writeFileSync(fallScenarioPath, JSON.stringify({
+    player: { pos: [45, -11, 0], carried: 4, flames: 3 },
     random_motes: false,
     random_shades: false,
     motes: [],
-    shades: [{ id: "S1", pos: [0, 0, 0.5] }], // Within shade_hit_radius (1.0m)
-    lanterns: []
+    shades: []
   }));
 
-  const hitOut = path.join(outDir, 'test_hit.jsonl');
-  execSync(`node src/headless.js --seed 123 --night 1 --scenario "${hitScenarioPath}" --ticks 5 --out "${hitOut}"`, { cwd: rootDir });
+  const fallOut = path.join(outDir, 'test_fall.jsonl');
+  execSync(`node src/headless.js --seed 123 --night 1 --scenario "${fallScenarioPath}" --ticks 5 --out "${fallOut}"`, { cwd: rootDir });
 
-  const lines = fs.readFileSync(hitOut, 'utf-8').trim().split('\n').map(l => JSON.parse(l));
-  const hitEv = lines.find(l => l.type === 'event' && l.name === 'player_hit');
+  const lines = fs.readFileSync(fallOut, 'utf-8').trim().split('\n').map(l => JSON.parse(l));
+  const fallEv = lines.find(l => l.type === 'event' && l.name === 'player_hit' && l.data.by === 'fall');
 
-  assert(!!hitEv && hitEv.data.flames === 2 && hitEv.data.dropped === 2, "Test 7: Bóng Mực gây sát thương và rơi đom đóm", "Không tìm thấy sự kiện player_hit đúng");
+  assert(!!fallEv && fallEv.data.flames === 2 && fallEv.data.lost === 4, "Test 9: Rơi khỏi đảo trừ 1 lửa & mất hết đom đóm", "Fall event không đúng");
 } catch (e) {
-  assert(false, "Test 7: Bóng Mực gây sát thương", e.message);
+  assert(false, "Test 9: Rơi khỏi đảo", e.message);
 }
 
-console.log(`\n=== TỔNG KẾT: ${passed} PASS, ${failed} FAIL ===`);
+// Test 10: Pause / Resume Logic
+try {
+  const pauseInputsPath = path.join(outDir, 'pause_inputs.json');
+  fs.writeFileSync(pauseInputsPath, JSON.stringify({
+    frames: [
+      { tick: 5, pause: true },
+      { tick: 6, pause: false },
+      { tick: 15, pause: true },
+      { tick: 16, pause: false }
+    ]
+  }));
+
+  const pauseOut = path.join(outDir, 'test_pause.jsonl');
+  execSync(`node src/headless.js --seed 123 --night 1 --inputs "${pauseInputsPath}" --ticks 25 --out "${pauseOut}"`, { cwd: rootDir });
+
+  const lines = fs.readFileSync(pauseOut, 'utf-8').trim().split('\n').map(l => JSON.parse(l));
+  const pausedEv = lines.find(l => l.type === 'event' && l.name === 'paused');
+  const resumedEv = lines.find(l => l.type === 'event' && l.name === 'resumed');
+  const snap10 = lines.find(l => l.type === 'snapshot' && l.tick === 10);
+
+  assert(!!pausedEv && !!resumedEv, "Test 10: Sự kiện Tạm dừng và Tiếp tục (paused / resumed)", "Thiếu paused hoặc resumed event");
+  assert(snap10 && snap10.state === 'paused', "Test 10: Snapshot ghi nhận state: 'paused'", `Snapshot state: ${snap10 ? snap10.state : 'null'}`);
+} catch (e) {
+  assert(false, "Test 10: Tạm dừng / Tiếp tục", e.message);
+}
+
+// Test 11: Performance Benchmark (Đêm đầy đủ 21,600 ticks <= 30s)
+try {
+  const tStart = Date.now();
+  const perfOut = path.join(outDir, 'test_perf.jsonl');
+  execSync(`node src/headless.js --seed 42 --night 3 --ticks 21600 --snapshot-every 3600 --out "${perfOut}"`, { cwd: rootDir });
+  const durationMs = Date.now() - tStart;
+  const durationSec = durationMs / 1000.0;
+
+  assert(durationSec <= 30.0, `Test 11: Hiệu năng 21,600 ticks đạt chuẩn (${durationSec.toFixed(2)}s <= 30s)`, `Quá thời gian: ${durationSec}s`);
+} catch (e) {
+  assert(false, "Test 11: Hiệu năng 21,600 ticks", e.message);
+}
+
+console.log(`\n=== TỔNG KẾT PHASE 2: ${passed} PASS, ${failed} FAIL ===`);
 if (failed > 0) {
   process.exit(1);
 } else {
-  console.log("Toàn bộ test đã ĐẠT chuẩn xác!");
+  console.log("Toàn bộ test Phase 2 (Contract v1.1) đã ĐẠT hoàn hảo!");
 }

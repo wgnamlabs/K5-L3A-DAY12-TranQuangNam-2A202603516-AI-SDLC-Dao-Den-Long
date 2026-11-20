@@ -1,8 +1,8 @@
 {
-  "player": { "pos": [0, 0, 21.0], "carried": 5, "flames": 3 },
+  "player": { "pos": [0, 0, 24.0], "carried": 10, "flames": 3 },
   "random_motes": false,
   "random_shades": false,
   "motes": [],
   "shades": [],
-  "lanterns": [{ "id": "L1", "pos": [0, 0, 22.0], "deposited": 0 }]
+  "lanterns": [{ "id": "L1", "pos": [0, 0, 25.0], "deposited": 0 }]
 }

@@ -2,9 +2,9 @@
 
 /**
  * headless.js
- * CLI Runner for Test Contract v1.0
+ * CLI Runner for Test Contract v1.1
  * Usage:
- *   node src/headless.js --seed <int> --night 1 [--scenario <file.json>] [--inputs <file.json>]
+ *   node src/headless.js --seed <int> --night <1|2|3> [--scenario <file.json>] [--inputs <file.json>]
  *                        --ticks <int> --out <file.jsonl> [--snapshot-every <int, default 10>]
  */
 
@@ -52,6 +52,9 @@ for (let i = 0; i < args.length; i++) {
 
 if (params.seed === null || isNaN(params.seed)) {
   printErrorAndExit("Missing or invalid mandatory argument --seed <int>", 1);
+}
+if (params.night !== 1 && params.night !== 2 && params.night !== 3) {
+  printErrorAndExit("Argument --night must be 1, 2, or 3", 1);
 }
 if (params.ticks === null || isNaN(params.ticks) || params.ticks < 0) {
   printErrorAndExit("Missing or invalid mandatory argument --ticks <int>", 1);
@@ -112,7 +115,7 @@ try {
     }
   }
 } catch (e) {
-  // Use default tuning
+  // Use defaults
 }
 
 // 4. Initialize Game Simulation
@@ -120,6 +123,7 @@ let sim;
 try {
   sim = new GameSimulation({
     seed: params.seed,
+    night: params.night,
     tuning: contractTuning,
     scenario: scenarioData
   });
@@ -143,33 +147,36 @@ function writeLine(obj) {
   outStream.write(JSON.stringify(obj) + '\n');
 }
 
-// Tick 0 Snapshot: state after scenario setup, before applying tick 0 inputs
+// Tick 0 Snapshot: initial state after scenario setup, before applying inputs
 writeLine(sim.getSnapshot());
+
+// Emit night_start event at tick 0
+writeLine({
+  type: "event",
+  tick: 0,
+  name: "night_start",
+  data: { night: params.night }
+});
 
 // 5. Execution loop: N steps (k = 0 .. ticks - 1)
 const targetTicks = params.ticks;
 
 for (let k = 0; k < targetTicks; k++) {
-  // Apply frame if exists for tick k
   if (framesMap.has(k)) {
     sim.applyInputFrame(framesMap.get(k));
   }
 
-  // Step simulation produces tick k+1
   const events = sim.step();
 
-  // Write events occurring in this step
   for (const ev of events) {
     writeLine(ev);
   }
 
-  // Snapshot if on snapshot-every boundary
   if ((k + 1) % params.snapshotEvery === 0) {
     writeLine(sim.getSnapshot());
   }
 
-  // Early break if game won or lost
-  if (sim.state !== 'playing') {
+  if (sim.state !== 'playing' && sim.state !== 'paused') {
     break;
   }
 }

@@ -3,13 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Đảo Đèn Lồng — 3D Game</title>
+  <title>Đảo Đèn Lồng — 3 Đêm Huyền Bí (Phase 2)</title>
   <link rel="stylesheet" href="css/style.css">
-  <!-- Vendor Three.js (Offline) -->
   <script src="js/vendor/three.min.js"></script>
-  <!-- Core Simulation Logic (Single Source of Truth) -->
   <script src="/src/engine/GameSimulation.js"></script>
-  <!-- Audio Synthesizer -->
   <script src="js/audio.js"></script>
 </head>
 <body>
@@ -18,76 +15,136 @@
   <!-- HUD Overlay -->
   <div id="hud">
     <div class="hud-top">
-      <div class="hud-card">
-        <div class="stat-item">
-          <span class="stat-icon">🏮</span>
-          <span>Đèn Lớn:</span>
-          <span id="hud-lanterns" class="lanterns-counter">0 / 5</span>
-        </div>
-        <div class="stat-item">
-          <span class="stat-icon">✨</span>
-          <span>Đom đóm:</span>
-          <span id="hud-motes" class="motes-counter">0 / 10</span>
-        </div>
-        <div class="stat-item">
-          <span class="stat-icon">🔥</span>
-          <div id="hud-flames" class="flames-list">
-            <span class="flame-icon">🔥</span>
-            <span class="flame-icon">🔥</span>
-            <span class="flame-icon">🔥</span>
-          </div>
+      <div class="hud-card flames-card">
+        <span class="stat-label">LỬA SINH MỆNH</span>
+        <div id="hud-flames" class="flames-list">
+          <span class="flame-icon">🔥</span>
+          <span class="flame-icon">🔥</span>
+          <span class="flame-icon">🔥</span>
         </div>
       </div>
 
-      <div class="hud-card">
-        <div class="stat-item">
-          <span class="stat-icon">⏱️</span>
-          <span>Thời gian:</span>
-          <span id="hud-time" class="time-counter">300s</span>
-        </div>
-        <div class="stat-item">
-          <span class="stat-icon">🏆</span>
-          <span>Điểm:</span>
-          <span id="hud-score" class="score-counter">0</span>
-        </div>
+      <div class="hud-card timer-card">
+        <span id="hud-night-title">ĐÊM 1 — ĐẢO BẾN</span>
+        <div id="hud-timer" class="time-counter">05:00</div>
+      </div>
+
+      <div class="hud-card score-card">
+        <div>🏮 ĐÈN: <span id="hud-lanterns" class="lanterns-counter">0 / 5</span></div>
+        <div>🏆 ĐIỂM: <span id="hud-score" class="score-counter">0</span></div>
       </div>
     </div>
 
-    <div id="prompt-banner">Nhấn [E] để thắp sáng Đèn Lồng Lớn!</div>
+    <!-- Direction Arrow to Closest Unlit Lantern -->
+    <div id="lantern-tracker">
+      <div id="tracker-arrow">➤</div>
+      <div id="tracker-dist">25m</div>
+    </div>
 
+    <!-- Prompt Banner -->
+    <div id="prompt-banner">E — Nạp ánh sáng (0/10)</div>
+
+    <!-- HUD Bottom -->
     <div class="hud-bottom">
-      <div class="controls-hint">
-        <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> : Di chuyển Mây</div>
-        <div><kbd>Kéo chuột</kbd> hoặc <kbd>Q</kbd> <kbd>E</kbd> : Xoay camera 3D</div>
-        <div><kbd>Space</kbd> : Tỏa sáng (xua Bóng Mực, tốn 1 đom đóm)</div>
-        <div><kbd>E</kbd> hoặc <kbd>F</kbd> : Thắp đèn khi đứng gần Đèn Lớn</div>
-        <div><kbd>R</kbd> : Chơi lại</div>
+      <div class="hud-card controls-hint">
+        <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> : Di chuyển</div>
+        <div><kbd>Space</kbd> : Nhảy | <kbd>Shift</kbd> : Lướt (Dash)</div>
+        <div><kbd>F</kbd> : Tỏa sáng (Pulse) | <kbd>E</kbd> : Thắp đèn</div>
+        <div><kbd>Esc</kbd> / <kbd>P</kbd> : Tạm dừng</div>
+      </div>
+
+      <!-- Motes 10-Slot Inventory Bar -->
+      <div class="hud-card motes-bar-card">
+        <span class="stat-label">TÚI ĐOM ĐÓM (<span id="motes-count-text">0</span>/10)</span>
+        <div id="motes-slots" class="slots-container">
+          <div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div>
+          <div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div>
+        </div>
+      </div>
+
+      <!-- Skill Cooldowns -->
+      <div class="hud-card cooldowns-card">
+        <div class="cd-circle" id="cd-dash">
+          <span class="cd-key">SHIFT</span>
+          <span class="cd-label">LƯỚT</span>
+          <div class="cd-overlay" id="cd-dash-overlay"></div>
+        </div>
+        <div class="cd-circle" id="cd-pulse">
+          <span class="cd-key">F</span>
+          <span class="cd-label">TỎA SÁNG</span>
+          <div class="cd-overlay" id="cd-pulse-overlay"></div>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- Game Over / Won Modals -->
+  <!-- Story Intro Modal -->
+  <div id="modal-intro" class="modal-overlay active">
+    <div class="modal-box">
+      <h1 class="modal-title" id="intro-night-name">ĐÊM 1 — ĐẢO BẾN</h1>
+      <div class="ong-dang-quote">
+        <em>"Mây à, sương đen lại ùa về nuốt chửng ánh sáng đảo rồi. Con hãy cầm đèn, gom đom đóm thắp sáng lại 5 Đèn Lồng Lớn trước khi trời sáng nhé!"</em>
+        <p style="text-align: right; margin-top: 8px; color: #F2C14E;">— Lời dặn của Ông Đăng</p>
+      </div>
+      <button class="btn-primary" onclick="startNightGame()">Bắt đầu Đêm nay</button>
+    </div>
+  </div>
+
+  <!-- Pause Menu Modal -->
+  <div id="modal-pause" class="modal-overlay">
+    <div class="modal-box">
+      <h1 class="modal-title">⏸️ TẠM DỪNG</h1>
+      <div class="pause-settings">
+        <div class="setting-row">
+          <label>Âm lượng:</label>
+          <input type="range" id="setting-volume" min="0" max="100" value="80" onchange="saveSettings()">
+        </div>
+        <div class="setting-row">
+          <label>Độ nhạy chuột:</label>
+          <input type="range" id="setting-sens" min="1" max="10" value="5" onchange="saveSettings()">
+        </div>
+      </div>
+      <div class="btn-group">
+        <button class="btn-primary" onclick="togglePauseGame()">Tiếp tục (Esc)</button>
+        <button class="btn-secondary" onclick="restartCurrentNight()">Chơi lại Đêm này</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Night Won Modal -->
   <div id="modal-won" class="modal-overlay">
     <div class="modal-box">
-      <h1 class="modal-title">🎉 ĐẢO ĐÈN LỒNG BỪNG SÁNG!</h1>
-      <p class="modal-desc">Mây đã thắp sáng trọn vẹn cả 5 Đèn Lồng Lớn. Sương đen đã tan biến và bình minh ấm áp đã trở lại với Đảo Bến!</p>
+      <h1 class="modal-title">✨ ĐÊM NAY ĐẢO ĐÃ BỪNG SÁNG!</h1>
+      <p class="modal-desc" id="won-desc">Tất cả ngọn đèn đã được thắp sáng rực rỡ, xua tan lũ Bóng Mực!</p>
       <div class="modal-stats">
-        <div><strong>Điểm số cuối:</strong> <span id="win-score" class="score-counter">0</span></div>
-        <div><strong>Thời gian còn:</strong> <span id="win-time" class="time-counter">0s</span></div>
+        <div><strong>Điểm đêm này:</strong> <span id="win-score" class="score-counter">0</span></div>
+        <div><strong>Tổng điểm tích lũy:</strong> <span id="win-total-score" class="score-counter">0</span></div>
       </div>
-      <button class="btn-primary" onclick="restartGame()">Chơi lại (Phím R)</button>
+      <button class="btn-primary" id="btn-next-night" onclick="nextNight()">Tiến sang Đêm tiếp theo</button>
     </div>
   </div>
 
+  <!-- Game Over Modal -->
   <div id="modal-lost" class="modal-overlay">
     <div class="modal-box">
-      <h1 class="modal-title" style="color: #e63946;">SƯƠNG ĐEN ĐÃ NUỐT CHỬNG...</h1>
-      <p id="lost-reason-desc" class="modal-desc">Mây đã kiệt sức trước lũ Bóng Mực. Hãy cẩn thận hơn vào đêm tiếp theo!</p>
+      <h1 class="modal-title" style="color: #FF5A5F;">SƯƠNG ĐEN ĐÃ NUỐT CHỬNG...</h1>
+      <p id="lost-reason-desc" class="modal-desc">Mây đã kiệt sức trước màn sương đêm. Hãy thử lại để bảo vệ hòn đảo!</p>
       <div class="modal-stats">
-        <div><strong>Điểm tích lũy:</strong> <span id="lost-score" class="score-counter">0</span></div>
         <div><strong>Đèn đã thắp:</strong> <span id="lost-lanterns" class="lanterns-counter">0 / 5</span></div>
       </div>
-      <button class="btn-primary" onclick="restartGame()">Thử lại (Phím R)</button>
+      <button class="btn-primary" onclick="restartCurrentNight()">Thử lại Đêm này (Phím R)</button>
+    </div>
+  </div>
+
+  <!-- Campaign Dawn Win Modal (After Night 3) -->
+  <div id="modal-dawn" class="modal-overlay">
+    <div class="modal-box">
+      <h1 class="modal-title" style="color: #F2C14E;">🌅 BÌNH MINH TRÊN ĐẢO ĐÈN LỒNG</h1>
+      <p class="modal-desc">Mây đã kiên cường vượt qua cả 3 Đêm giông bão: Đảo Bến, Đảo Cau và Đảo Chuông! Ánh bình minh rạng rỡ đã vĩnh viễn xua tan Bóng Mực khỏi quần đảo.</p>
+      <div class="modal-stats">
+        <div><strong>TỔNG ĐIỂM CHIẾN DỊCH:</strong> <span id="dawn-final-score" class="score-counter" style="font-size: 1.6rem;">0</span></div>
+      </div>
+      <button class="btn-primary" onclick="restartCampaign()">Chơi lại từ Đêm 1</button>
     </div>
   </div>
 
