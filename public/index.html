@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Đảo Đèn Lồng — Đèn cạn dầu (Phase 3)</title>
+  <title>Đảo Đèn Lồng — Release v1.0.0 (Contract v1.3)</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏮</text></svg>">
   <link rel="stylesheet" href="css/style.css">
   <script src="js/vendor/three.min.js"></script>
@@ -13,7 +13,13 @@
 <body>
   <div id="canvas-container"></div>
 
-  <!-- HUD Overlay -->
+  <!-- Offscreen direction indicators for newly spawned shades (Accessibility) -->
+  <div id="offscreen-arrow" class="offscreen-arrow" style="display: none;">➤</div>
+
+  <!-- Subtitles / Visual Indicators Container (Accessibility) -->
+  <div id="subtitles-container" class="subtitles-container"></div>
+
+  <!-- HUD Overlay (Phase 3 Core Layout) -->
   <div id="hud">
     <div class="hud-top">
       <div class="hud-card flames-card">
@@ -27,7 +33,7 @@
 
       <div class="hud-card timer-card">
         <span id="hud-night-title">ĐÊM 1 — ĐẢO BẾN</span>
-        <div id="hud-timer" class="time-counter">05:00</div>
+        <div id="hud-timer" class="time-counter">04:00</div>
       </div>
 
       <div class="hud-card score-card">
@@ -48,10 +54,10 @@
     <!-- HUD Bottom -->
     <div class="hud-bottom">
       <div class="hud-card controls-hint">
-        <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> : Di chuyển</div>
-        <div><kbd>Space</kbd> : Nhảy | <kbd>Shift</kbd> : Lướt (Dash)</div>
-        <div><kbd>F</kbd> : Tỏa sáng (Pulse) | <kbd>E</kbd> : Thắp đèn</div>
-        <div><kbd>Esc</kbd> / <kbd>P</kbd> : Tạm dừng</div>
+        <div><kbd id="hint-key-fwd">W</kbd><kbd id="hint-key-left">A</kbd><kbd id="hint-key-back">S</kbd><kbd id="hint-key-right">D</kbd> : Di chuyển</div>
+        <div><kbd id="hint-key-jump">Space</kbd> : Nhảy | <kbd id="hint-key-dash">Shift</kbd> : Lướt (Dash)</div>
+        <div><kbd id="hint-key-pulse">F</kbd> : Tỏa sáng (Pulse) | <kbd id="hint-key-interact">E</kbd> : Thắp đèn / Châm dầu</div>
+        <div><kbd id="hint-key-pause">Esc</kbd> / <kbd>P</kbd> : Tạm dừng</div>
       </div>
 
       <!-- Motes Inventory Bar (10-20 slots) -->
@@ -66,12 +72,12 @@
       <!-- Skill Cooldowns -->
       <div class="hud-card cooldowns-card">
         <div class="cd-circle" id="cd-dash">
-          <span class="cd-key">SHIFT</span>
+          <span class="cd-key" id="cd-key-dash">SHIFT</span>
           <span class="cd-label">LƯỚT</span>
           <div class="cd-overlay" id="cd-dash-overlay"></div>
         </div>
         <div class="cd-circle" id="cd-pulse">
-          <span class="cd-key">F</span>
+          <span class="cd-key" id="cd-key-pulse">F</span>
           <span class="cd-label">TỎA SÁNG</span>
           <div class="cd-overlay" id="cd-pulse-overlay"></div>
         </div>
@@ -84,10 +90,13 @@
     <div class="modal-box">
       <h1 class="modal-title" id="intro-night-name">ĐÊM 1 — ĐẢO BẾN</h1>
       <div class="ong-dang-quote">
-        <em>"Mây à, sương đen lại ùa về nuốt chửng ánh sáng đảo rồi. Con hãy cầm đèn, gom đom đóm thắp sáng lại 5 Đèn Lồng Lớn trước khi trời sáng nhé!"</em>
+        <em>"Mây à, sương đen lại ùa về nuốt chửng ánh sáng đảo rồi. Con hãy cầm đèn, gom đom đóm thắp sáng lại các Đèn Lớn và giữ đảo sáng tới bình minh nhé!"</em>
         <p style="text-align: right; margin-top: 8px; color: #F2C14E;">— Lời dặn của Ông Đăng</p>
       </div>
-      <button class="btn-primary" onclick="startNightGame()">Bắt đầu Đêm nay</button>
+      <div class="btn-group">
+        <button class="btn-primary" onclick="startNightGame()">Bắt đầu Đêm nay</button>
+        <button class="btn-secondary" onclick="openLeaderboardModal()">🏆 Bảng Xếp Hạng</button>
+      </div>
     </div>
   </div>
 
@@ -108,10 +117,109 @@
           <label for="setting-colorblind">Bảng màu dễ phân biệt (Mù màu):</label>
           <input type="checkbox" id="setting-colorblind" onchange="toggleColorblindSetting()">
         </div>
+        <div class="setting-row">
+          <label for="setting-reduced-motion">Giảm chuyển động (Reduced Motion):</label>
+          <input type="checkbox" id="setting-reduced-motion" onchange="toggleReducedMotionSetting()">
+        </div>
+        <div class="setting-row">
+          <label for="setting-large-text">Cỡ chữ lớn (Large Text 1.25x):</label>
+          <input type="checkbox" id="setting-large-text" onchange="toggleLargeTextSetting()">
+        </div>
+        <div class="setting-row">
+          <label>Tùy biến phím:</label>
+          <button class="btn-secondary" style="padding: 4px 10px; font-size: 0.85rem;" onclick="openKeybindingsModal()">⌨️ Đổi phím</button>
+        </div>
+        <div class="setting-row">
+          <label>Bảng xếp hạng:</label>
+          <button class="btn-secondary" style="padding: 4px 10px; font-size: 0.85rem;" onclick="openLeaderboardModal()">🏆 Xem BXH</button>
+        </div>
       </div>
       <div class="btn-group">
         <button class="btn-primary" onclick="togglePauseGame()">Tiếp tục (Esc)</button>
         <button class="btn-secondary" onclick="restartCurrentNight()">Chơi lại Đêm này</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Keybindings Customization Modal (Accessibility) -->
+  <div id="modal-keybinds" class="modal-overlay">
+    <div class="modal-box keybindings-box">
+      <h1 class="modal-title">⌨️ TÙY BIẾN PHÍM ĐIỀU KHIỂN</h1>
+      <p class="modal-desc">Bấm vào nút phím bất kỳ rồi nhấn phím mới trên bàn phím để gán.</p>
+      
+      <div id="keybind-warning" class="keybind-warning" style="display: none;"></div>
+
+      <div class="keybind-table">
+        <div class="keybind-row">
+          <span>Tiến (Forward):</span>
+          <button class="btn-key" id="keybtn-moveForward" onclick="startRemapping('moveForward')">W</button>
+        </div>
+        <div class="keybind-row">
+          <span>Lùi (Backward):</span>
+          <button class="btn-key" id="keybtn-moveBackward" onclick="startRemapping('moveBackward')">S</button>
+        </div>
+        <div class="keybind-row">
+          <span>Sang trái (Left):</span>
+          <button class="btn-key" id="keybtn-moveLeft" onclick="startRemapping('moveLeft')">A</button>
+        </div>
+        <div class="keybind-row">
+          <span>Sang phải (Right):</span>
+          <button class="btn-key" id="keybtn-moveRight" onclick="startRemapping('moveRight')">D</button>
+        </div>
+        <div class="keybind-row">
+          <span>Nhảy (Jump):</span>
+          <button class="btn-key" id="keybtn-jump" onclick="startRemapping('jump')">Space</button>
+        </div>
+        <div class="keybind-row">
+          <span>Lướt nhanh (Dash):</span>
+          <button class="btn-key" id="keybtn-dash" onclick="startRemapping('dash')">Shift</button>
+        </div>
+        <div class="keybind-row">
+          <span>Tương tác / Châm dầu (Interact):</span>
+          <button class="btn-key" id="keybtn-interact" onclick="startRemapping('interact')">E</button>
+        </div>
+        <div class="keybind-row">
+          <span>Tỏa Sáng (Pulse):</span>
+          <button class="btn-key" id="keybtn-pulse" onclick="startRemapping('pulse')">F</button>
+        </div>
+        <div class="keybind-row">
+          <span>Tạm dừng (Pause):</span>
+          <button class="btn-key" id="keybtn-pause" onclick="startRemapping('pause')">Escape</button>
+        </div>
+      </div>
+
+      <div class="btn-group" style="margin-top: 15px;">
+        <button class="btn-secondary" onclick="resetKeybindingsToDefault()">Khôi phục mặc định</button>
+        <button class="btn-primary" onclick="closeKeybindingsModal()">Đóng</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Leaderboard Modal -->
+  <div id="modal-leaderboard" class="modal-overlay">
+    <div class="modal-box leaderboard-box">
+      <h1 class="modal-title">🏆 BẢNG XẾP HẠNG ĐẢO ĐÈN LỒNG</h1>
+      <p class="modal-desc">Top 10 người hùng giữ lửa kiên cường nhất qua các đêm giông bão.</p>
+      
+      <div class="leaderboard-table-container">
+        <table class="leaderboard-table">
+          <thead>
+            <tr>
+              <th>Hạng</th>
+              <th>Người chơi</th>
+              <th>Tổng Điểm</th>
+              <th>Đêm Thắng</th>
+              <th>Thời gian</th>
+            </tr>
+          </thead>
+          <tbody id="leaderboard-tbody">
+            <tr><td colspan="5" style="text-align: center;">Đang tải dữ liệu...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="btn-group" style="margin-top: 15px;">
+        <button class="btn-primary" onclick="closeLeaderboardModal()">Đóng</button>
       </div>
     </div>
   </div>
@@ -125,6 +233,17 @@
         <div><strong>Điểm đêm này:</strong> <span id="win-score" class="score-counter">0</span></div>
         <div><strong>Tổng điểm tích lũy:</strong> <span id="win-total-score" class="score-counter">0</span></div>
       </div>
+
+      <!-- Save score form -->
+      <div class="leaderboard-entry-form" id="won-lb-form">
+        <label>Ghi danh Bảng Xếp Hạng:</label>
+        <div class="input-row" style="display: flex; gap: 8px; margin: 10px 0;">
+          <input type="text" id="won-player-name" placeholder="Tên Mây (3-12 ký tự)" maxlength="12" style="flex: 1; padding: 6px 10px; border-radius: 6px; border: 1px solid #F2C14E; background: #0E1430; color: #FFF;">
+          <button class="btn-secondary" onclick="submitScoreFromWon()">Lưu Điểm</button>
+        </div>
+        <div id="won-submit-msg" class="submit-msg" style="font-size: 0.85rem; color: #00FFCC;"></div>
+      </div>
+
       <button class="btn-primary" id="btn-next-night" onclick="nextNight()">Tiến sang Đêm tiếp theo</button>
     </div>
   </div>
@@ -137,6 +256,17 @@
       <div class="modal-stats">
         <div><strong>Đèn đã thắp:</strong> <span id="lost-lanterns" class="lanterns-counter">0 / 5</span></div>
       </div>
+
+      <!-- Save score form -->
+      <div class="leaderboard-entry-form" id="lost-lb-form">
+        <label>Ghi danh Bảng Xếp Hạng:</label>
+        <div class="input-row" style="display: flex; gap: 8px; margin: 10px 0;">
+          <input type="text" id="lost-player-name" placeholder="Tên Mây (3-12 ký tự)" maxlength="12" style="flex: 1; padding: 6px 10px; border-radius: 6px; border: 1px solid #F2C14E; background: #0E1430; color: #FFF;">
+          <button class="btn-secondary" onclick="submitScoreFromLost()">Lưu Điểm</button>
+        </div>
+        <div id="lost-submit-msg" class="submit-msg" style="font-size: 0.85rem; color: #00FFCC;"></div>
+      </div>
+
       <button class="btn-primary" onclick="restartCurrentNight()">Thử lại Đêm này (Phím R)</button>
     </div>
   </div>
@@ -149,7 +279,21 @@
       <div class="modal-stats">
         <div><strong>TỔNG ĐIỂM CHIẾN DỊCH:</strong> <span id="dawn-final-score" class="score-counter" style="font-size: 1.6rem;">0</span></div>
       </div>
-      <button class="btn-primary" onclick="restartCampaign()">Chơi lại từ Đêm 1</button>
+
+      <!-- Save score form -->
+      <div class="leaderboard-entry-form" id="dawn-lb-form">
+        <label>Ghi danh Vinh Quang:</label>
+        <div class="input-row" style="display: flex; gap: 8px; margin: 10px 0;">
+          <input type="text" id="dawn-player-name" placeholder="Tên Mây (3-12 ký tự)" maxlength="12" style="flex: 1; padding: 6px 10px; border-radius: 6px; border: 1px solid #F2C14E; background: #0E1430; color: #FFF;">
+          <button class="btn-secondary" onclick="submitScoreFromDawn()">Lưu Kỷ Lục</button>
+        </div>
+        <div id="dawn-submit-msg" class="submit-msg" style="font-size: 0.85rem; color: #00FFCC;"></div>
+      </div>
+
+      <div class="btn-group">
+        <button class="btn-primary" onclick="restartCampaign()">Chơi lại từ Đêm 1</button>
+        <button class="btn-secondary" onclick="openLeaderboardModal()">Xem Bảng Xếp Hạng</button>
+      </div>
     </div>
   </div>
 

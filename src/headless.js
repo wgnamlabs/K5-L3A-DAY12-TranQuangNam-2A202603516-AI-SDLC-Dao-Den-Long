@@ -19,6 +19,17 @@ function printErrorAndExit(msg, code = 1) {
 
 // 1. Parse arguments
 const args = process.argv.slice(2);
+
+// Check --export-leaderboard (Contract v1.3)
+const lbIdx = args.indexOf('--export-leaderboard');
+if (lbIdx !== -1 && args[lbIdx + 1]) {
+  const leaderboard = require('./leaderboard');
+  const exportPath = path.resolve(process.cwd(), args[lbIdx + 1]);
+  leaderboard.exportLeaderboard(exportPath);
+  console.log(`[LEADERBOARD] Exported leaderboard to ${exportPath}`);
+  process.exit(0);
+}
+
 const params = {
   seed: null,
   night: 1,

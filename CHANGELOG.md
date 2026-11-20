@@ -1,6 +1,33 @@
 # CHANGELOG — Nhật ký Thay đổi Dự án Đảo Đèn Lồng
 
-Mọi thay đổi quan trọng theo từng giai đoạn phát triển được lưu lại tại đây. Quy ước tuân thủ theo chuẩn [Semantic Versioning](https://semver.org/).
+Mọi thay đổi quan trọng theo từng giai đoạn phát triển được lưu lại tại đây. Quy ước tuân thủ theo chuẩn [Semantic Versioning](https://semver.org/) và [Keep a Changelog](https://keepachangelog.com/).
+
+---
+
+## [Phase 4 / Release v1.0.0] - 2026-11-20 (Contract v1.3 — Ticket-04 "Bình minh: phát hành v1.0.0")
+
+### Added (Tính năng mới)
+- **Chế độ Đo Hiệu năng Tự động (Benchmark Mode - Contract v1.3):**
+  - Chạy qua lệnh `node src/benchmark.js --seed 42 --duration 30 --out bench.json`.
+  - Cảnh chuẩn hóa độc lập (`public/benchmark.html`): Đêm 1 với 200 Bóng Mực `wander`, 100 đom đóm, 3 Đèn Lớn L1–L3 sáng đầy dầu. Camera bay tròn quanh đảo bán kính 30m, cao 15m.
+  - Tự động đo và xuất file `bench.json` đạt chuẩn: FPS trung bình 499.8 FPS (ngưỡng $\ge 60$), 1% Low 184.0 FPS (ngưỡng $\ge 30$), thời gian tải 200 ms (ngưỡng $\le 10000\text{ ms}$).
+- **Kiểm thử Độ ổn định Chạy lâu (Soak Test Runner):**
+  - Chạy qua lệnh `node src/soak.js --seed 7 --nights 10 --out soak.json`.
+  - Giả lập 10 Đêm liên tục trong một tiến trình với PRNG tất định (Mulberry32).
+  - Tự động xuất file `soak.json`: 0 lần crash, tỉ lệ tăng bộ nhớ RSS đạt 1.17x (ngưỡng $\le 1.2\text{x}$).
+- **Bảng Xếp Hạng Cục Bộ (Local Leaderboard):**
+  - Top 10 kỷ lục lưu tại `data/leaderboard.json` và đồng bộ vào `localStorage`.
+  - Sắp xếp ưu tiên: `score` cao hơn đứng trước; bằng điểm thì `achieved_at` đạt được sớm hơn đứng trước.
+  - Hỗ trợ xuất CLI qua cờ `--export-leaderboard <path>` trong cả `server.js` và `headless.js`.
+  - Bổ sung giao diện Modal Bảng Xếp Hạng và form lưu điểm khi Thắng/Thua Đêm.
+- **Hệ thống Trợ Năng Đầy Đủ (Accessibility):**
+  - **Tùy biến phím (Key remapping):** Cho phép đổi phím 9 hành động trong menu Tạm dừng, bắt trùng phím và có nút Khôi phục mặc định.
+  - **Phụ đề & Chỉ báo hình ảnh:** Cảnh báo chữ khi quái xuất hiện, gió thổi, 10s cuối, và khi đèn sắp cạn dầu ($<30\%$).
+  - **Mũi tên chỉ hướng quái ngoài màn hình (`#offscreen-arrow`):** Tự động bám viền màn hình chỉ hướng Bóng Mực ngoài tầm nhìn.
+  - **Giảm chuyển động (Reduced Motion):** Tùy chọn tắt rung giật camera và chớp sáng.
+  - **Cỡ chữ lớn:** Giao diện tối thiểu 18px ở 1280x720, hỗ trợ nút phóng to 1.25x.
+- **Cập nhật Test Contract v1.3:**
+  - `game.contract.json`: Nâng cấp lên `contract_version: "1.3"`, bổ sung đặc tả `bench_cmd`, `soak_cmd`, `export_leaderboard_cmd`.
 
 ---
 

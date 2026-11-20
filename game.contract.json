@@ -1,9 +1,11 @@
 {
-  "contract_version": "1.2",
+  "contract_version": "1.3",
   "team": "2A202603516-TranQuangNam",
   "build_cmd": "npm install",
   "run_cmd": "node src/server.js",
   "headless_cmd": "node src/headless.js",
+  "bench_cmd": "node src/benchmark.js",
+  "soak_cmd": "node src/soak.js",
   "tuning": {
     "player_speed": 6.0,
     "dash_speed": 14.0,

@@ -428,9 +428,65 @@ try {
   assert(false, "Test 24: Snapshot Contract v1.2", e.message);
 }
 
-console.log(`\n=== TỔNG KẾT PHASE 3: ${passed} PASS, ${failed} FAIL ===`);
+// Test 25: Lệnh xuất Leaderboard --export-leaderboard (Contract v1.3)
+try {
+  const lbOutPath = path.join(outDir, 'test_lb_export.json');
+  if (fs.existsSync(lbOutPath)) fs.unlinkSync(lbOutPath);
+  execSync(`node src/server.js --export-leaderboard "${lbOutPath}"`, { cwd: rootDir });
+
+  assert(fs.existsSync(lbOutPath), "Test 25: Lệnh xuất leaderboard tạo file thành công", "File không tồn tại");
+  const exported = JSON.parse(fs.readFileSync(lbOutPath, 'utf-8'));
+  assert(exported && Array.isArray(exported.entries), "Test 25: File export có trường entries dạng mảng", `Dữ liệu: ${JSON.stringify(exported)}`);
+} catch (e) {
+  assert(false, "Test 25: Export leaderboard", e.message);
+}
+
+// Test 26: Kiểm tra logic sắp xếp Leaderboard chuẩn Contract v1.3
+try {
+  const { sortEntries } = require('../src/leaderboard');
+  const dummyEntries = [
+    { name: "PlayerB", score: 200, achieved_at: "2026-11-20T10:05:00Z" },
+    { name: "PlayerA", score: 500, achieved_at: "2026-11-20T10:10:00Z" },
+    { name: "PlayerC", score: 200, achieved_at: "2026-11-20T10:00:00Z" } // Đạt trước PlayerB
+  ];
+  const sorted = sortEntries(dummyEntries);
+
+  assert(sorted[0].name === "PlayerA" && sorted[0].score === 500, "Test 26: Điểm cao nhất đứng đầu bảng", `Hạng 1: ${sorted[0].name}`);
+  assert(sorted[1].name === "PlayerC" && sorted[2].name === "PlayerB", "Test 26: Cùng điểm thì người đạt trước đứng trên", `Thứ tự: ${sorted.map(s => s.name).join(', ')}`);
+} catch (e) {
+  assert(false, "Test 26: Sắp xếp leaderboard", e.message);
+}
+
+// Test 27: Soak test Contract v1.3 (Kiểm tra kết quả chạy 10 đêm)
+try {
+  const soakFilePath = path.join(rootDir, 'soak.json');
+  assert(fs.existsSync(soakFilePath), "Test 27: File soak.json tồn tại trong repo", "Thiếu soak.json");
+  const soakData = JSON.parse(fs.readFileSync(soakFilePath, 'utf-8'));
+
+  assert(soakData.nights === 10, "Test 27: Soak test chạy đủ 10 Đêm liên tiếp", `Nights: ${soakData.nights}`);
+  assert(soakData.crashes === 0, "Test 27: Số lần crash bằng 0", `Crashes: ${soakData.crashes}`);
+  assert(soakData.mem_end_mb <= 1.2 * soakData.mem_start_mb, "Test 27: Bộ nhớ mem_end_mb <= 1.2 * mem_start_mb", `Start: ${soakData.mem_start_mb}, End: ${soakData.mem_end_mb}`);
+} catch (e) {
+  assert(false, "Test 27: Soak test verification", e.message);
+}
+
+// Test 28: Benchmark verification (Contract v1.3)
+try {
+  const benchFilePath = path.join(rootDir, 'bench.json');
+  assert(fs.existsSync(benchFilePath), "Test 28: File bench.json tồn tại trong repo", "Thiếu bench.json");
+  const benchData = JSON.parse(fs.readFileSync(benchFilePath, 'utf-8'));
+
+  assert(benchData.contract_version === "1.3", "Test 28: bench.json contract_version là 1.3", `Version: ${benchData.contract_version}`);
+  assert(benchData.avg_fps >= 60, "Test 28: Benchmark avg_fps >= 60", `avg_fps: ${benchData.avg_fps}`);
+  assert(benchData.p1_low_fps >= 30, "Test 28: Benchmark p1_low_fps >= 30", `p1_low: ${benchData.p1_low_fps}`);
+  assert(benchData.load_ms <= 10000, "Test 28: Benchmark load_ms <= 10000", `load_ms: ${benchData.load_ms}`);
+} catch (e) {
+  assert(false, "Test 28: Benchmark verification", e.message);
+}
+
+console.log(`\n=== TỔNG KẾT PHASE 4: ${passed} PASS, ${failed} FAIL ===`);
 if (failed > 0) {
   process.exit(1);
 } else {
-  console.log("Toàn bộ test Phase 3 (Contract v1.2) đã ĐẠT hoàn hảo 100%!");
+  console.log("Toàn bộ test Phase 4 (Contract v1.3) đã ĐẠT hoàn hảo 100%!");
 }

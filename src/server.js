@@ -2,11 +2,23 @@
  * server.js
  * Lightweight zero-dependency HTTP server to run "Đảo Đèn Lồng" in any browser.
  * Usage: node src/server.js [port]
+ *        node src/server.js --export-leaderboard <output.json>
  */
 
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const leaderboard = require('./leaderboard');
+
+// CLI check for --export-leaderboard
+const args = process.argv.slice(2);
+const exportIdx = args.indexOf('--export-leaderboard');
+if (exportIdx !== -1 && args[exportIdx + 1]) {
+  const exportPath = path.resolve(process.cwd(), args[exportIdx + 1]);
+  leaderboard.exportLeaderboard(exportPath);
+  console.log(`[LEADERBOARD] Đã xuất bảng xếp hạng thành công ra: ${exportPath}`);
+  process.exit(0);
+}
 
 const PORT = parseInt(process.argv[2], 10) || 3000;
 const ROOT_DIR = path.resolve(__dirname, '..');
@@ -25,6 +37,38 @@ const MIME_TYPES = {
 
 const server = http.createServer((req, res) => {
   let reqUrl = req.url.split('?')[0];
+
+  // REST API: GET /api/leaderboard
+  if (reqUrl === '/api/leaderboard' && req.method === 'GET') {
+    const data = leaderboard.getLeaderboard();
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+    res.end(JSON.stringify(data));
+    return;
+  }
+
+  // REST API: POST /api/leaderboard
+  if (reqUrl === '/api/leaderboard' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', () => {
+      try {
+        const entry = JSON.parse(body);
+        const result = leaderboard.addEntry(entry);
+        if (result.success) {
+          res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ success: true, entry: result.entry }));
+        } else {
+          res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ success: false, error: result.error }));
+        }
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ success: false, error: 'Invalid JSON' }));
+      }
+    });
+    return;
+  }
+
   if (reqUrl === '/favicon.ico') {
     res.writeHead(204);
     res.end();
@@ -33,7 +77,7 @@ const server = http.createServer((req, res) => {
   if (reqUrl === '/') reqUrl = '/index.html';
 
   let filePath;
-  // Route /src/engine/GameSimulation.js directly
+  // Route /src/ directly
   if (reqUrl.startsWith('/src/')) {
     filePath = path.join(ROOT_DIR, reqUrl);
   } else {
@@ -49,8 +93,8 @@ const server = http.createServer((req, res) => {
 
   fs.stat(filePath, (err, stats) => {
     if (err || !stats.isFile()) {
-      res.writeHead(404, { 'Content-Type': 'text/plain' });
-      res.end('404 Not Found');
+      res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+      res.end('404 Không tìm thấy tệp yêu cầu');
       return;
     }
 
@@ -58,7 +102,8 @@ const server = http.createServer((req, res) => {
     const contentType = MIME_TYPES[ext] || 'application/octet-stream';
 
     res.writeHead(200, { 'Content-Type': contentType });
-    fs.createReadStream(filePath).pipe(res);
+    const stream = fs.createReadStream(filePath);
+    stream.pipe(res);
   });
 });
 

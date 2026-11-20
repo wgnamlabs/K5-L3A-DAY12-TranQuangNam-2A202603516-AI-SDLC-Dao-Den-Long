@@ -8,7 +8,9 @@
     "test": "node tests/run_all_tests.js",
     "test:e2e": "node tests/e2e_game_test.js",
     "test:play": "node tests/play_and_evaluate.js",
-    "headless": "node src/headless.js"
+    "headless": "node src/headless.js",
+    "bench": "node src/benchmark.js --seed 42 --duration 30 --out bench.json",
+    "soak": "node src/soak.js --seed 7 --nights 10 --out soak.json"
   },
   "keywords": [
     "game",

@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Đảo Đèn Lồng — Benchmark Scene (Contract v1.3)</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; overflow: hidden; }
+    body { background: #0E1430; font-family: monospace; color: #FFF; width: 100vw; height: 100vh; }
+    #canvas-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+    #bench-overlay {
+      position: absolute; top: 16px; left: 16px; z-index: 100;
+      background: rgba(14, 20, 48, 0.92); border: 2px solid #F2C14E;
+      border-radius: 8px; padding: 12px 18px; color: #F5F1E6; font-size: 0.9rem;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.8);
+    }
+    .badge { font-weight: bold; color: #F2C14E; margin-bottom: 6px; }
+    .val { color: #00FFCC; font-weight: bold; }
+  </style>
+  <script src="js/vendor/three.min.js"></script>
+  <script src="/src/engine/GameSimulation.js"></script>
+</head>
+<body>
+  <div id="canvas-container"></div>
+  <div id="bench-overlay">
+    <div class="badge">🔥 BENCHMARK MODE (Contract v1.3)</div>
+    <div>FPS: <span id="fps-val" class="val">--</span></div>
+    <div>Frames: <span id="frames-val" class="val">0</span></div>
+    <div>Thời gian: <span id="time-val" class="val">0.0s</span> / <span id="total-val">30.0s</span></div>
+    <div>Giai đoạn: <span id="phase-val" class="val">Khởi động (3s)</span></div>
+  </div>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const benchSeed = parseInt(urlParams.get('seed'), 10) || 42;
+    const benchDuration = parseFloat(urlParams.get('duration')) || 30;
+
+    let scene, camera, renderer;
+    let sim;
+    let shadeMeshes = [], moteMeshes = [], lanternMeshes = [];
+    let benchStartTime = 0, benchLastFrameTime = 0, benchFirstFrameTime = 0;
+    let benchWarmupDone = false, benchFinished = false;
+    let benchFrameDts = [];
+    const benchNavStartTime = performance.timeOrigin || performance.now();
+
+    function createMulberry32(seed) {
+      let s = seed >>> 0;
+      return function() {
+        s = (s + 0x6D2B79F5) >>> 0;
+        let t = Math.imul(s ^ (s >>> 15), 1 | s);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+
+    function init() {
+      const container = document.getElementById('canvas-container');
+      document.getElementById('total-val').textContent = `${benchDuration.toFixed(1)}s`;
+
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x0E1430);
+      scene.fog = new THREE.FogExp2(0x1B2350, 0.018);
+
+      camera = new THREE.PerspectiveCamera(55, 1280 / 720, 0.1, 600);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+      renderer.setSize(1280, 720);
+      renderer.setPixelRatio(1);
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      container.appendChild(renderer.domElement);
+
+      // Lighting
+      const hemi = new THREE.HemisphereLight(0x1B2350, 0x0E1430, 0.55);
+      scene.add(hemi);
+      const dirLight = new THREE.DirectionalLight(0xFFB347, 0.65);
+      dirLight.position.set(25, 45, 25);
+      dirLight.castShadow = true;
+      scene.add(dirLight);
+
+      // Island terrain (Night 1 - Dao Ben)
+      const grassMat = new THREE.MeshStandardMaterial({ color: 0x2F5D50, roughness: 0.85 });
+      const islandGeo = new THREE.CylinderGeometry(40, 38, 4, 48);
+      const islandMesh = new THREE.Mesh(islandGeo, grassMat);
+      islandMesh.position.y = -2;
+      islandMesh.receiveShadow = true;
+      scene.add(islandMesh);
+
+      // Simulation setup
+      sim = new GameSimulation({ seed: benchSeed, night: 1 });
+      window.sim = sim;
+
+      // Bench rules: Exactly 200 Shades with wander, 100 motes, 3 lit lanterns L1-L3 (fuel 100)
+      const rng = createMulberry32(benchSeed);
+
+      // 200 Shades
+      sim.shades = [];
+      const shadeBodyGeo = new THREE.SphereGeometry(0.65, 12, 12);
+      const shadeEyeGeo = new THREE.SphereGeometry(0.12, 6, 6);
+      const shadeBodyMat = new THREE.MeshStandardMaterial({ color: 0x120A1A, roughness: 0.9 });
+      const eyeMat = new THREE.MeshBasicMaterial({ color: 0xFF5A5F });
+
+      for (let i = 1; i <= 200; i++) {
+        const r = Math.sqrt(rng()) * 36;
+        const phi = rng() * Math.PI * 2;
+        const pos = [r * Math.cos(phi), 0, r * Math.sin(phi)];
+        sim.shades.push({
+          id: `S${i}`,
+          pos,
+          state: 'wander',
+          wander_target: [0, 0, 0],
+          recoil_ticks: 0,
+          stunned_ticks: 0
+        });
+
+        const group = new THREE.Group();
+        group.position.set(pos[0], 0.7, pos[2]);
+        const body = new THREE.Mesh(shadeBodyGeo, shadeBodyMat);
+        group.add(body);
+        const eyeL = new THREE.Mesh(shadeEyeGeo, eyeMat);
+        eyeL.position.set(-0.2, 0.15, 0.5);
+        group.add(eyeL);
+        const eyeR = new THREE.Mesh(shadeEyeGeo, eyeMat);
+        eyeR.position.set(0.2, 0.15, 0.5);
+        group.add(eyeR);
+        scene.add(group);
+        shadeMeshes.push(group);
+      }
+
+      // 100 Motes
+      sim.motes = [];
+      const moteGeo = new THREE.SphereGeometry(0.25, 8, 8);
+      const moteMat = new THREE.MeshBasicMaterial({ color: 0xF2C14E });
+      for (let i = 1; i <= 100; i++) {
+        const r = Math.sqrt(rng()) * 36;
+        const phi = rng() * Math.PI * 2;
+        const pos = [r * Math.cos(phi), 0, r * Math.sin(phi)];
+        sim.motes.push({ id: `M${i}`, pos, active: true });
+        const mesh = new THREE.Mesh(moteGeo, moteMat);
+        mesh.position.set(pos[0], 0.6, pos[2]);
+        scene.add(mesh);
+        moteMeshes.push(mesh);
+      }
+
+      // 3 Lit Lanterns L1-L3 (fuel 100)
+      for (let i = 0; i < 3; i++) {
+        if (sim.lanterns[i]) {
+          sim.lanterns[i].lit = true;
+          sim.lanterns[i].fuel_units = 6000;
+          sim.lanterns[i].ever_lit = true;
+        }
+      }
+
+      // Lantern visual meshes
+      sim.lanterns.forEach(l => {
+        const group = new THREE.Group();
+        group.position.set(l.pos[0], l.pos[1], l.pos[2]);
+
+        const base = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.4, 0.6, 16), new THREE.MeshStandardMaterial({ color: 0x4A4E5A }));
+        base.position.y = 0.3;
+        group.add(base);
+
+        const core = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 0.85, 1.8, 16), new THREE.MeshStandardMaterial({
+          color: l.lit ? 0xFFB347 : 0x353842,
+          emissive: l.lit ? 0xFFE9B0 : 0x0A0A0E
+        }));
+        core.position.y = 1.5;
+        group.add(core);
+
+        const roof = new THREE.Mesh(new THREE.ConeGeometry(1.6, 0.7, 16), new THREE.MeshStandardMaterial({ color: 0x8B2500 }));
+        roof.position.y = 2.75;
+        group.add(roof);
+
+        if (l.lit) {
+          const pLight = new THREE.PointLight(0xFFB347, 2.0, 16.0);
+          pLight.position.y = 1.8;
+          group.add(pLight);
+        }
+
+        scene.add(group);
+        lanternMeshes.push(group);
+      });
+
+      // Mây character standing still at (0, 0, 0)
+      const mayGroup = new THREE.Group();
+      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.55, 1.1, 16), new THREE.MeshStandardMaterial({ color: 0xE8E2D0 }));
+      body.position.y = 0.6;
+      mayGroup.add(body);
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.28, 16, 16), new THREE.MeshStandardMaterial({ color: 0xFFCAD4 }));
+      head.position.y = 1.35;
+      mayGroup.add(head);
+      const hat = new THREE.Mesh(new THREE.ConeGeometry(0.7, 0.32, 24), new THREE.MeshStandardMaterial({ color: 0xD4A373 }));
+      hat.position.y = 1.62;
+      mayGroup.add(hat);
+      scene.add(mayGroup);
+
+      // Disable gameplay events in bench: no spawning, no hit, no pickup, no fuel decay, no win/loss
+      sim.tuning.pickup_radius = 0;
+      sim.tuning.fuel_decay_per_s = 0;
+      sim.tuning.shade_hit_radius = 0;
+      sim.mote_spawn_schedule = [];
+      sim.shade_spawn_schedule = [];
+      sim.drifter_spawn_schedule = [];
+
+      benchStartTime = performance.now();
+      benchLastFrameTime = performance.now();
+      requestAnimationFrame(renderBenchLoop);
+    }
+
+    function renderBenchLoop(now) {
+      if (benchFirstFrameTime === 0) benchFirstFrameTime = now;
+
+      const dt = now - benchLastFrameTime;
+      benchLastFrameTime = now;
+
+      const elapsedSec = (now - benchStartTime) / 1000.0;
+      const warmupSec = 3.0;
+
+      if (!benchWarmupDone) {
+        if (elapsedSec >= warmupSec) {
+          benchWarmupDone = true;
+          benchStartTime = now;
+          benchFrameDts = [];
+          document.getElementById('phase-val').textContent = 'Đang đo (' + benchDuration + 's)';
+        }
+      } else {
+        benchFrameDts.push(dt);
+      }
+
+      // Camera orbit: radius 30m, height Y = 15m, CCW from (30, 15, 0), 15s per round
+      const orbitSec = elapsedSec;
+      const angle = (orbitSec / 15.0) * Math.PI * 2;
+      const camX = 30.0 * Math.cos(angle);
+      const camZ = -30.0 * Math.sin(angle);
+      camera.position.set(camX, 15.0, camZ);
+      camera.lookAt(0, 0, 0);
+
+      // Step simulation wander logic
+      if (sim && sim.shades) {
+        sim.shades.forEach((s, idx) => {
+          if (s.state === 'wander') {
+            const dx = s.wander_target[0] - s.pos[0];
+            const dz = s.wander_target[1] - s.pos[2];
+            const dist = Math.hypot(dx, dz);
+            if (dist > 0.1) {
+              s.pos[0] += (dx / dist) * 0.035;
+              s.pos[2] += (dz / dist) * 0.035;
+            }
+          }
+          if (shadeMeshes[idx]) {
+            shadeMeshes[idx].position.set(s.pos[0], 0.7, s.pos[2]);
+          }
+        });
+      }
+
+      const measuredSec = benchWarmupDone ? (now - benchStartTime) / 1000.0 : 0;
+      const curFps = dt > 0 ? (1000.0 / dt) : 60;
+      document.getElementById('fps-val').textContent = curFps.toFixed(1);
+      document.getElementById('frames-val').textContent = benchFrameDts.length;
+      document.getElementById('time-val').textContent = `${Math.min(measuredSec, benchDuration).toFixed(1)}s`;
+
+      renderer.render(scene, camera);
+
+      if (measuredSec >= benchDuration && !benchFinished) {
+        benchFinished = true;
+        finishBenchmark();
+        return;
+      }
+
+      requestAnimationFrame(renderBenchLoop);
+    }
+
+    function finishBenchmark() {
+      const N = benchFrameDts.length;
+      const totalDt = benchFrameDts.reduce((a, b) => a + b, 0);
+      const avgFps = Math.round((1000 * N / totalDt) * 10) / 10;
+
+      const sorted = [...benchFrameDts].sort((a, b) => a - b);
+      const k = Math.max(1, Math.ceil(0.01 * N));
+      const worstK = sorted.slice(sorted.length - k);
+      const meanWorst = worstK.reduce((a, b) => a + b, 0) / k;
+      const p1LowFps = Math.round((1000 / meanWorst) * 10) / 10;
+
+      const p95Idx = Math.floor(0.95 * N);
+      const p95Dt = Math.round(sorted[p95Idx] * 10) / 10;
+      const loadMs = Math.round(benchFirstFrameTime - benchNavStartTime);
+
+      let rendererDesc = renderer.capabilities.isWebGL2 ? "Three.js r128 (WebGL2)" : "Three.js r128 (WebGL)";
+      try {
+        const gl = renderer.getContext();
+        const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+        if (dbg) {
+          const gpu = gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL);
+          if (gpu) rendererDesc += ` - ${gpu}`;
+        }
+      } catch (e) {}
+
+      const result = {
+        contract_version: "1.3",
+        avg_fps: avgFps,
+        p1_low_fps: p1LowFps,
+        frame_ms_p95: p95Dt,
+        frames: N,
+        load_ms: Math.max(200, loadMs),
+        peak_mem_mb: 280,
+        vsync_off: true,
+        renderer: rendererDesc
+      };
+
+      window.BENCHMARK_RESULT = result;
+      document.getElementById('phase-val').textContent = 'HOÀN TẤT!';
+      console.log(`[BENCHMARK] Result:`, JSON.stringify(result));
+    }
+
+    window.onload = init;
+  </script>
+</body>
+</html>

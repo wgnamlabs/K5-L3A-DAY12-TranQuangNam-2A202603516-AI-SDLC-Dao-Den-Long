@@ -30,3 +30,16 @@
 - Kiem thu tu dong Playwright E2E tren trinh duyet dat 19/19 tieu chi dat chuan.
 - Soan thao Architecture Decision Record (ADR-001) va CHANGELOG cho cac breaking changes.
 - Uoc tinh chi phi token cho Phase 3: khoang 20,000 prompt tokens va 8,000 completion tokens.
+
+
+## 5. Nhat ky su dung AI (Phase 4 - Ticket-04 "Bình minh: phát hành v1.0.0")
+- Tiep nhan Ticket-04: Non-functional & Release v1.0.0, nang cap Contract len v1.3.
+- Xay dung Benchmark mode bang Playwright (`node src/benchmark.js`), can do 200 Bong Muc, 100 dom dom rieng biet tai `public/benchmark.html`, cach ly hoan toan khoi man hinh choi game chinh de tranh anh huong gameplay.
+- Xay dung Soak test 10 Dem lien tuc trong mot tien trinh Node.js (`node src/soak.js`), Mulberry32 PRNG ngau nhien hoa input, kiem soat ro ri bo nho (mem_end <= 1.2 * mem_start, crashes = 0).
+- Trien khai Bang xep hang cuc bo (Local Leaderboard): Luu Top 10 ben vung vao `data/leaderboard.json` va `localStorage`, sap xep diem giam dan, tien trinh dat truoc uu tien truoc, ho tro CLI `--export-leaderboard out.json`.
+- He thong Tro nang toan dien (Accessibility): Doi 9 phim dieu khien (co bat trung phim), phu de su kien & mui ten chi huong quai ngoai man hinh, Che do giam chuyen dong (Reduced Motion), Co chu lon (Large UI text 1.25x).
+- Mo rong bo kiem thu headless len 28 kich ban (52 assertions), 100% PASS.
+- Kiem thu tu dong Playwright E2E tren trinh duyet dat 19/19 tieu chi nghiem thu, giu nguyen 100% gameplay, tao hinh May non la, giao dien HUD chuan Phase 3.
+- Hoan thien he thong tai lieu: README.md (< 3 lenh quickstart), CHANGELOG.md (chuan Keep a Changelog), CREDITS.md, LICENSE (MIT), retro-sdlc.md (1-2 trang danh gia AI-SDLC), phase-4.md (bang chung thuc nghiem).
+- Uoc tinh chi phi token cho Phase 4: khoang 22,000 prompt tokens va 9,000 completion tokens. Tong cong ca 4 Phase: ~105,000 tokens (~$0.21 USD).
+
