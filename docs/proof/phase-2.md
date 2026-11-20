@@ -95,3 +95,34 @@ Kết quả thực nghiệm:
 ### Các lỗi phát hiện và đã sửa dứt điểm:
 1. **Lỗi 404 Favicon:** Trình duyệt tự động request `/favicon.ico` gây lỗi console 404 -> Đã bổ sung favicon SVG nhúng trực tiếp và cấu hình server trả status code 204.
 2. **Lỗi Resume Menu Tạm dừng:** Nút bấm UI Resume kích hoạt toggle trực tiếp trạng thái `isPaused` thay vì phụ thuộc xung nhịp bàn phím, đảm bảo Menu Tạm dừng đóng/mở mượt mà 100%.
+
+
+---
+
+## 5. Bằng chứng AI Chơi Game Trực tiếp trên Web (Autonomous Gameplay Evaluation)
+
+Lệnh thực thi:
+```bash
+npm run test:play
+```
+
+Kết quả thực nghiệm trực tiếp trên trình duyệt Chromium:
+- **Di chuyển (WASD):** [ĐẠT CHUẨN] Tốc độ 6.0 m/s mượt mà theo góc camera.
+- **Nhảy (Space):** [ĐẠT CHUẨN] Bật nhảy lên 1.03m và rơi trở lại đất đúng trọng lực -20 m/s².
+- **Lướt (Shift / Dash):** [ĐẠT CHUẨN] Tốc độ 14.0 m/s lướt nhanh 3.4m, giữ nguyên độ cao trên không, hồi chiêu 1.5s hiển thị trên HUD.
+- **Nhặt Đom Đóm:** [ĐẠT CHUẨN] Tự động nhặt khi XZ <= 1.0m, thanh 10 ô đom đóm sáng tương ứng.
+- **Thắp Đèn Lớn (E / Enter):** [ĐẠT CHUẨN] Hiện nhắc tương tác trong 2.0m, nạp đủ 10 đom đóm đèn L1 bừng sáng, HUD cập nhật `1 / 5`.
+- **Tỏa Sáng (F / Pulse):** [ĐẠT CHUẨN] Tốn 3 đom đóm, làm choáng Bóng Mực trong 120 ticks, đẩy lùi 4m, hồi chiêu 3s.
+- **Bóng Mực Gây Sát Thương:** [ĐẠT CHUẨN] Trừ 1 ngọn lửa (biểu tượng lửa mờ đi trên HUD), rơi 50% đom đóm mang theo, kích hoạt bất tử nhấp nháy 90 ticks.
+- **Menu Tạm Dừng (Esc / P):** [ĐẠT CHUẨN] Đóng băng logic, hiển thị cài đặt âm lượng và độ nhạy chuột.
+- **Rơi Khỏi Đảo (Y < -10):** [ĐẠT CHUẨN] Trừ 1 ngọn lửa, mất toàn bộ đom đóm, chờ 60 ticks rồi hồi sinh tại tâm đảo.
+- **Môi trường Đêm 2 & Đêm 3:** [ĐẠT CHUẨN] Đảo Cau (cầu tre, bục nhảy, Bùa Gió) và Đảo Chuông (3 tầng đá, tháp chuông, gió mạnh) khởi tạo chuẩn xác.
+
+Toàn bộ 7 ảnh chụp thực nghiệm đã được lưu tại:
+- `docs/proof/gameplay/01_intro_dialog.png`
+- `docs/proof/gameplay/02_dash_and_movement.png`
+- `docs/proof/gameplay/03_lantern_lit.png`
+- `docs/proof/gameplay/04_pulse_stun.png`
+- `docs/proof/gameplay/05_pause_menu.png`
+- `docs/proof/gameplay/06_night2_island_cau.png`
+- `docs/proof/gameplay/07_night3_bell_island.png`

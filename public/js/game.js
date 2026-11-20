@@ -13,6 +13,7 @@ let hemiLight, dirLight;
 
 // Input & Camera tracking
 const keys = {};
+const latchedKeys = { jump: false, dash: false, interact: false, pulse: false };
 let mouseDrag = false;
 let prevMouseX = 0;
 let camYaw = 0;
@@ -126,6 +127,7 @@ function startNightGame() {
     seed: Math.floor(Math.random() * 100000),
     night: currentNight
   });
+  window.sim = sim;
 
   buildIslandTerrain(currentNight);
   buildCharacter();
@@ -445,6 +447,11 @@ function onKeyDown(e) {
   const k = e.key.toLowerCase();
   keys[k] = true;
 
+  if (k === ' ' || k === 'space') latchedKeys.jump = true;
+  if (k === 'shift') latchedKeys.dash = true;
+  if (k === 'e' || k === 'enter') latchedKeys.interact = true;
+  if (k === 'f') latchedKeys.pulse = true;
+
   if (k === 'escape' || k === 'p') {
     togglePauseGame();
   } else if (k === 'r') {
@@ -551,11 +558,16 @@ function animate(now) {
       const frame = {
         move: [mx, mz],
         cam_yaw_deg: yawDeg,
-        jump: !!(keys[' ']),
-        dash: !!(keys['shift']),
-        interact: !!(keys['e'] || keys['enter']),
-        pulse: !!(keys['f'])
+        jump: !!(keys[' '] || keys['space'] || latchedKeys.jump),
+        dash: !!(keys['shift'] || latchedKeys.dash),
+        interact: !!(keys['e'] || keys['enter'] || latchedKeys.interact),
+        pulse: !!(keys['f'] || latchedKeys.pulse)
       };
+
+      latchedKeys.jump = false;
+      latchedKeys.dash = false;
+      latchedKeys.interact = false;
+      latchedKeys.pulse = false;
 
       sim.applyInputFrame(frame);
       const events = sim.step();
