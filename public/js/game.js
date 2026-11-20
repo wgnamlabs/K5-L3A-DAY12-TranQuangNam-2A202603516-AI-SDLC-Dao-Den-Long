@@ -577,48 +577,323 @@ function buildCharacter() {
 
   const group = new THREE.Group();
 
-  // Robe body (#E8E2D0) with red scarf (#C8102E)
-  const bodyGeo = new THREE.CylinderGeometry(0.3, 0.55, 1.1, 16);
-  const bodyMat = new THREE.MeshStandardMaterial({ color: 0xE8E2D0, roughness: 0.8 });
-  const body = new THREE.Mesh(bodyGeo, bodyMat);
-  body.position.y = 0.6;
-  body.castShadow = true;
-  group.add(body);
+  // Root pivot for the whole body
+  const bodyRoot = new THREE.Group();
+  group.add(bodyRoot);
 
-  const scarfGeo = new THREE.TorusGeometry(0.32, 0.1, 8, 16);
-  scarfGeo.rotateX(Math.PI / 2);
-  const scarfMat = new THREE.MeshStandardMaterial({ color: 0xC8102E });
-  const scarf = new THREE.Mesh(scarfGeo, scarfMat);
-  scarf.position.y = 1.15;
-  group.add(scarf);
+  // 1. Tunic Torso (Áo bà ba mộc mạc #F6F0E0)
+  const torsoGroup = new THREE.Group();
+  torsoGroup.position.y = 0.55;
+  bodyRoot.add(torsoGroup);
 
-  // Head
-  const headGeo = new THREE.SphereGeometry(0.28, 16, 16);
-  const headMat = new THREE.MeshStandardMaterial({ color: 0xFFCAD4, roughness: 0.6 });
-  const head = new THREE.Mesh(headGeo, headMat);
-  head.position.y = 1.35;
+  const tunicMat = new THREE.MeshStandardMaterial({ color: 0xF6F0E0, roughness: 0.85 });
+  const beltMat = new THREE.MeshStandardMaterial({ color: 0x283042, roughness: 0.7 });
+  const trimMat = new THREE.MeshStandardMaterial({ color: 0xF2C14E, roughness: 0.6 });
+  const pantsMat = new THREE.MeshStandardMaterial({ color: 0x222129, roughness: 0.9 });
+  const skinMat = new THREE.MeshStandardMaterial({ color: 0xFFE2D6, roughness: 0.5 });
+  const clogMat = new THREE.MeshStandardMaterial({ color: 0x6E472D, roughness: 0.8 });
+  const scarfMat = new THREE.MeshStandardMaterial({ color: 0xC8102E, roughness: 0.7 });
+
+  // Main chest & waist
+  const chest = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.28, 0.5, 14), tunicMat);
+  chest.position.y = 0.25;
+  chest.castShadow = true;
+  torsoGroup.add(chest);
+
+  // Belt / Dải thắt lưng
+  const belt = new THREE.Mesh(new THREE.CylinderGeometry(0.285, 0.29, 0.1, 14), beltMat);
+  belt.position.y = 0.05;
+  torsoGroup.add(belt);
+
+  // Lower tunic flare / Tà áo
+  const skirt = new THREE.Mesh(new THREE.ConeGeometry(0.38, 0.35, 14, 1, true), tunicMat);
+  skirt.position.y = -0.15;
+  skirt.rotation.x = Math.PI;
+  skirt.castShadow = true;
+  torsoGroup.add(skirt);
+
+  // Gold trim line at hem
+  const trim = new THREE.Mesh(new THREE.TorusGeometry(0.38, 0.02, 6, 16), trimMat);
+  trim.rotation.x = Math.PI / 2;
+  trim.position.y = -0.32;
+  torsoGroup.add(trim);
+
+  // 2. Legs & Clogs (Guốc mộc)
+  const leftLeg = new THREE.Group();
+  leftLeg.position.set(-0.13, 0.45, 0);
+  const rightLeg = new THREE.Group();
+  rightLeg.position.set(0.13, 0.45, 0);
+
+  const legGeo = new THREE.CylinderGeometry(0.08, 0.07, 0.4, 8);
+  const lLegMesh = new THREE.Mesh(legGeo, pantsMat);
+  lLegMesh.position.y = -0.2;
+  lLegMesh.castShadow = true;
+  leftLeg.add(lLegMesh);
+
+  const rLegMesh = new THREE.Mesh(legGeo, pantsMat);
+  rLegMesh.position.y = -0.2;
+  rLegMesh.castShadow = true;
+  rightLeg.add(rLegMesh);
+
+  // Little wooden clogs
+  const clogGeo = new THREE.BoxGeometry(0.12, 0.06, 0.2);
+  const lClog = new THREE.Mesh(clogGeo, clogMat);
+  lClog.position.set(0, -0.42, 0.04);
+  lClog.castShadow = true;
+  leftLeg.add(lClog);
+
+  const rClog = new THREE.Mesh(clogGeo, clogMat);
+  rClog.position.set(0, -0.42, 0.04);
+  rClog.castShadow = true;
+  rightLeg.add(rClog);
+
+  bodyRoot.add(leftLeg);
+  bodyRoot.add(rightLeg);
+
+  // 3. Head & Expressive Chibi Face
+  const headGroup = new THREE.Group();
+  headGroup.position.set(0, 1.25, 0);
+  bodyRoot.add(headGroup);
+
+  // Head sphere
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.26, 18, 16), skinMat);
   head.castShadow = true;
-  group.add(head);
+  headGroup.add(head);
 
-  // Nón lá
-  const hatGeo = new THREE.ConeGeometry(0.75, 0.4, 24);
-  const hatMat = new THREE.MeshStandardMaterial({ color: 0xC9B48A, roughness: 0.9 });
-  const hat = new THREE.Mesh(hatGeo, hatMat);
-  hat.position.y = 1.62;
-  hat.castShadow = true;
-  group.add(hat);
+  // Hair bun / tóc mái
+  const hairMat = new THREE.MeshStandardMaterial({ color: 0x1A1412, roughness: 0.9 });
+  const hairTop = new THREE.Mesh(new THREE.SphereGeometry(0.265, 14, 14, 0, Math.PI * 2, 0, Math.PI * 0.55), hairMat);
+  hairTop.position.y = 0.02;
+  headGroup.add(hairTop);
 
-  // Hanging mini-lantern
-  const miniLamp = new THREE.Mesh(
-    new THREE.SphereGeometry(0.12, 12, 12),
-    new THREE.MeshBasicMaterial({ color: 0xFFE9B0 })
+  const bun = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 10), hairMat);
+  bun.position.set(0, 0.24, -0.1);
+  headGroup.add(bun);
+
+  // Stylized Chibi Eyes
+  const eyeMat = new THREE.MeshBasicMaterial({ color: 0x140E1A });
+  const specMat = new THREE.MeshBasicMaterial({ color: 0xFFFFFF });
+
+  const eyeGeo = new THREE.SphereGeometry(0.045, 8, 8);
+  eyeGeo.scale(1.0, 1.3, 0.5);
+
+  const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
+  leftEye.position.set(-0.09, 0.03, 0.23);
+  headGroup.add(leftEye);
+
+  const lSpec = new THREE.Mesh(new THREE.SphereGeometry(0.016, 6, 6), specMat);
+  lSpec.position.set(-0.08, 0.05, 0.25);
+  headGroup.add(lSpec);
+
+  const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
+  rightEye.position.set(0.09, 0.03, 0.23);
+  headGroup.add(rightEye);
+
+  const rSpec = new THREE.Mesh(new THREE.SphereGeometry(0.016, 6, 6), specMat);
+  rSpec.position.set(0.10, 0.05, 0.25);
+  headGroup.add(rSpec);
+
+  // Soft pink blush cheeks
+  const blushMat = new THREE.MeshBasicMaterial({ color: 0xFF8FA5, transparent: true, opacity: 0.65 });
+  const blushGeo = new THREE.CircleGeometry(0.04, 12);
+
+  const lBlush = new THREE.Mesh(blushGeo, blushMat);
+  lBlush.position.set(-0.13, -0.04, 0.23);
+  lBlush.rotation.y = -0.3;
+  headGroup.add(lBlush);
+
+  const rBlush = new THREE.Mesh(blushGeo, blushMat);
+  rBlush.position.set(0.13, -0.04, 0.23);
+  rBlush.rotation.y = 0.3;
+  headGroup.add(rBlush);
+
+  // 4. Conical Hat / Nón Lá Truyền Thống
+  const hatGroup = new THREE.Group();
+  hatGroup.position.set(0, 0.2, 0);
+  headGroup.add(hatGroup);
+
+  const hatMat = new THREE.MeshStandardMaterial({
+    color: 0xE5D5AC,
+    roughness: 0.88,
+    side: THREE.DoubleSide
+  });
+  const hatCone = new THREE.Mesh(new THREE.ConeGeometry(0.72, 0.36, 24), hatMat);
+  hatCone.position.y = 0.12;
+  hatCone.castShadow = true;
+  hatGroup.add(hatCone);
+
+  // Hat woven rim ring
+  const hatRim = new THREE.Mesh(new THREE.TorusGeometry(0.72, 0.02, 6, 24), new THREE.MeshStandardMaterial({ color: 0xA48552 }));
+  hatRim.rotation.x = Math.PI / 2;
+  hatRim.position.y = -0.06;
+  hatGroup.add(hatRim);
+
+  // Chin strap / Quai nón
+  const strapMat = new THREE.MeshBasicMaterial({ color: 0x361618 });
+  const strapGeo = new THREE.TorusGeometry(0.28, 0.015, 6, 16, Math.PI);
+  const strap = new THREE.Mesh(strapGeo, strapMat);
+  strap.rotation.z = Math.PI;
+  strap.position.set(0, -0.05, 0.02);
+  headGroup.add(strap);
+
+  // 5. Red Scarf / Khăn Rằn Đỏ #C8102E (Articulated fluttering tails)
+  const scarfGroup = new THREE.Group();
+  scarfGroup.position.set(0, 1.05, 0);
+  bodyRoot.add(scarfGroup);
+
+  // Scarf collar wrapped around neck
+  const collar = new THREE.Mesh(new THREE.TorusGeometry(0.24, 0.08, 8, 16), scarfMat);
+  collar.rotation.x = Math.PI / 2;
+  collar.position.y = 0.05;
+  collar.castShadow = true;
+  scarfGroup.add(collar);
+
+  // Segmented trailing scarf ribbon
+  const scarfTailRoot = new THREE.Group();
+  scarfTailRoot.position.set(0.12, 0.02, -0.22);
+  scarfGroup.add(scarfTailRoot);
+
+  const tailGeo1 = new THREE.BoxGeometry(0.14, 0.04, 0.3);
+  tailGeo1.translate(0, 0, -0.15);
+  const scarfTail1 = new THREE.Mesh(tailGeo1, scarfMat);
+  scarfTailRoot.add(scarfTail1);
+
+  const tailGeo2 = new THREE.BoxGeometry(0.12, 0.03, 0.3);
+  tailGeo2.translate(0, 0, -0.15);
+  const scarfTail2 = new THREE.Mesh(tailGeo2, scarfMat);
+  scarfTail2.position.set(0, 0, -0.3);
+  scarfTail1.add(scarfTail2);
+
+  const tailGeo3 = new THREE.BoxGeometry(0.10, 0.02, 0.3);
+  tailGeo3.translate(0, 0, -0.15);
+  const scarfTail3 = new THREE.Mesh(tailGeo3, scarfMat);
+  scarfTail3.position.set(0, 0, -0.3);
+  scarfTail2.add(scarfTail3);
+
+  // 6. Arms & Handheld Vietnamese Lantern
+  const leftArm = new THREE.Group();
+  leftArm.position.set(-0.32, 0.95, 0);
+  const rightArm = new THREE.Group();
+  rightArm.position.set(0.32, 0.95, 0);
+
+  const armGeo = new THREE.CylinderGeometry(0.065, 0.06, 0.45, 8);
+  const handGeo = new THREE.SphereGeometry(0.06, 8, 8);
+
+  const lSleeve = new THREE.Mesh(armGeo, tunicMat);
+  lSleeve.position.y = -0.2;
+  lSleeve.castShadow = true;
+  leftArm.add(lSleeve);
+  const lHand = new THREE.Mesh(handGeo, skinMat);
+  lHand.position.y = -0.42;
+  leftArm.add(lHand);
+
+  const rSleeve = new THREE.Mesh(armGeo, tunicMat);
+  rSleeve.position.y = -0.2;
+  rSleeve.castShadow = true;
+  rightArm.add(rSleeve);
+  const rHand = new THREE.Mesh(handGeo, skinMat);
+  rHand.position.y = -0.42;
+  rightArm.add(rHand);
+
+  // Lantern attached to Right Hand
+  const lanternHolder = new THREE.Group();
+  lanternHolder.position.set(0, -0.42, 0.15);
+  rightArm.add(lanternHolder);
+
+  // Wooden handle pole
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.4, 6), new THREE.MeshStandardMaterial({ color: 0x5C3B1E }));
+  pole.rotation.x = Math.PI / 4;
+  pole.position.set(0, 0.05, 0.1);
+  lanternHolder.add(pole);
+
+  // Lantern body
+  const handLampGroup = new THREE.Group();
+  handLampGroup.position.set(0, -0.15, 0.28);
+  lanternHolder.add(handLampGroup);
+
+  const lampCoreGeo = new THREE.CylinderGeometry(0.12, 0.14, 0.28, 12);
+  const lampCoreMat = new THREE.MeshStandardMaterial({
+    color: 0xFFA533,
+    emissive: 0xFF7A00,
+    roughness: 0.35
+  });
+  const lampCore = new THREE.Mesh(lampCoreGeo, lampCoreMat);
+  handLampGroup.add(lampCore);
+
+  const lampCap = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.08, 12), new THREE.MeshStandardMaterial({ color: 0x4A2E16 }));
+  lampCap.position.y = 0.16;
+  handLampGroup.add(lampCap);
+
+  // Red tassel beneath lantern
+  const tassel = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.05, 0.16, 6), scarfMat);
+  tassel.position.y = -0.22;
+  handLampGroup.add(tassel);
+
+  // Warm flickering PointLight
+  const handPointLight = new THREE.PointLight(0xFFA533, 1.4, 7.0);
+  handPointLight.position.set(0, 0, 0);
+  handLampGroup.add(handPointLight);
+
+  bodyRoot.add(leftArm);
+  bodyRoot.add(rightArm);
+
+  // 7. Fireflies Orbiting Hat (active when carrying motes)
+  const orbitFireflies = [];
+  const orbitGroup = new THREE.Group();
+  orbitGroup.position.set(0, 1.5, 0);
+  headGroup.add(orbitGroup);
+
+  const ffMat = new THREE.MeshBasicMaterial({ color: 0xFFF275 });
+  const ffGeo = new THREE.SphereGeometry(0.04, 6, 6);
+  for (let i = 0; i < 10; i++) {
+    const ff = new THREE.Mesh(ffGeo, ffMat);
+    ff.visible = false;
+    orbitGroup.add(ff);
+    orbitFireflies.push(ff);
+  }
+
+  // 8. Soft Ground Contact Shadow Disc
+  const shadowCanvas = document.createElement('canvas');
+  shadowCanvas.width = 64;
+  shadowCanvas.height = 64;
+  const sctx = shadowCanvas.getContext('2d');
+  const sgrad = sctx.createRadialGradient(32, 32, 4, 32, 32, 30);
+  sgrad.addColorStop(0, 'rgba(10, 12, 24, 0.65)');
+  sgrad.addColorStop(0.5, 'rgba(10, 12, 24, 0.3)');
+  sgrad.addColorStop(1, 'rgba(10, 12, 24, 0)');
+  sctx.fillStyle = sgrad;
+  sctx.fillRect(0, 0, 64, 64);
+  const shadowTex = new THREE.CanvasTexture(shadowCanvas);
+  const contactShadow = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.4, 1.4),
+    new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false })
   );
-  const miniLight = new THREE.PointLight(0xFFB347, 1.2, 5);
-  miniLamp.add(miniLight);
-  miniLamp.position.set(0.45, 1.3, 0.3);
-  group.add(miniLamp);
+  contactShadow.rotation.x = -Math.PI / 2;
+  contactShadow.position.y = 0.03;
+  group.add(contactShadow);
 
   mayMesh = group;
+  mayMesh.userData = {
+    bodyRoot,
+    torsoGroup,
+    leftLeg,
+    rightLeg,
+    headGroup,
+    hatGroup,
+    scarfGroup,
+    scarfTail1,
+    scarfTail2,
+    scarfTail3,
+    leftArm,
+    rightArm,
+    handLampGroup,
+    handPointLight,
+    orbitFireflies,
+    orbitGroup,
+    contactShadow,
+    walkCycle: 0
+  };
+
   scene.add(mayMesh);
 }
 
@@ -1227,6 +1502,131 @@ function renderVisuals(time) {
       mayMesh.visible = Math.floor(time * 24) % 2 === 0;
     } else {
       mayMesh.visible = true;
+    }
+
+    // Procedural skeletal animation
+    const ud = mayMesh.userData;
+    if (ud && ud.bodyRoot) {
+      const isReduced = document.body.classList.contains('reduced-motion');
+      const horizSpeed = Math.hypot(sim.player.vel[0], sim.player.vel[2]);
+      const isMoving = horizSpeed > 0.6;
+      const isDashing = sim.player.dash_ticks_left > 0;
+      const isGrounded = sim.player.grounded;
+      const isPulse = sim.player.pulse_ticks_left > 0;
+      const carried = sim.player.carried || 0;
+
+      // Animate walkCycle
+      if (isMoving && isGrounded && !isReduced) {
+        ud.walkCycle = (ud.walkCycle || 0) + (isDashing ? 0.35 : 0.22);
+      }
+
+      const cycle = ud.walkCycle || 0;
+
+      // 1. Torso & Body bobbing
+      if (isDashing) {
+        ud.bodyRoot.position.y = -0.15;
+        ud.torsoGroup.rotation.x = 0.45;
+        ud.torsoGroup.rotation.z = 0;
+      } else if (isMoving && isGrounded && !isReduced) {
+        ud.bodyRoot.position.y = Math.abs(Math.sin(cycle * 2)) * 0.06;
+        ud.torsoGroup.rotation.x = 0.12;
+        ud.torsoGroup.rotation.z = Math.sin(cycle) * 0.04;
+      } else if (!isGrounded) {
+        ud.bodyRoot.position.y = 0.08;
+        ud.torsoGroup.rotation.x = -0.05;
+        ud.torsoGroup.rotation.z = 0;
+      } else {
+        ud.bodyRoot.position.y = isReduced ? 0 : Math.sin(time * 3) * 0.02;
+        ud.torsoGroup.rotation.x = 0;
+        ud.torsoGroup.rotation.z = 0;
+      }
+
+      // 2. Legs stride
+      if (isDashing) {
+        ud.leftLeg.rotation.x = -0.6;
+        ud.rightLeg.rotation.x = 0.3;
+      } else if (isMoving && isGrounded && !isReduced) {
+        ud.leftLeg.rotation.x = Math.sin(cycle) * 0.65;
+        ud.rightLeg.rotation.x = -Math.sin(cycle) * 0.65;
+      } else if (!isGrounded) {
+        ud.leftLeg.rotation.x = -0.35;
+        ud.rightLeg.rotation.x = 0.25;
+      } else {
+        ud.leftLeg.rotation.x = 0;
+        ud.rightLeg.rotation.x = 0;
+      }
+
+      // 3. Arms & Handheld lantern
+      if (isPulse) {
+        ud.leftArm.rotation.x = -1.2;
+        ud.rightArm.rotation.x = -1.2;
+      } else if (isDashing) {
+        ud.leftArm.rotation.x = 0.7;
+        ud.rightArm.rotation.x = 0.6;
+      } else if (isMoving && isGrounded && !isReduced) {
+        ud.leftArm.rotation.x = -Math.sin(cycle) * 0.55;
+        ud.rightArm.rotation.x = Math.sin(cycle) * 0.35;
+      } else {
+        ud.leftArm.rotation.x = isReduced ? 0 : Math.sin(time * 2) * 0.08;
+        ud.rightArm.rotation.x = isReduced ? 0 : Math.sin(time * 2.5) * 0.06;
+      }
+
+      // Hand lantern natural swing
+      if (ud.handLampGroup && !isReduced) {
+        ud.handLampGroup.rotation.x = Math.sin(time * 3) * 0.1 - (isMoving ? 0.2 : 0);
+        ud.handLampGroup.rotation.z = Math.cos(time * 2) * 0.08;
+      }
+
+      // Lantern PointLight soft flicker
+      if (ud.handPointLight) {
+        ud.handPointLight.intensity = isReduced ? 1.4 : (1.35 + Math.sin(time * 10) * 0.15 + Math.cos(time * 6.5) * 0.1);
+      }
+
+      // 4. Scarf tail flutter (3 segments)
+      if (ud.scarfTail1 && ud.scarfTail2 && ud.scarfTail3) {
+        if (isReduced) {
+          ud.scarfTail1.rotation.y = 0;
+          ud.scarfTail2.rotation.y = 0;
+          ud.scarfTail3.rotation.y = 0;
+        } else if (isDashing) {
+          ud.scarfTail1.rotation.x = -0.8;
+          ud.scarfTail2.rotation.x = -0.7;
+          ud.scarfTail3.rotation.x = -0.6;
+          ud.scarfTail1.rotation.y = Math.sin(time * 18) * 0.25;
+          ud.scarfTail2.rotation.y = Math.sin(time * 18 - 0.4) * 0.3;
+          ud.scarfTail3.rotation.y = Math.sin(time * 18 - 0.8) * 0.35;
+        } else if (isMoving) {
+          ud.scarfTail1.rotation.x = -0.45;
+          ud.scarfTail2.rotation.x = -0.4;
+          ud.scarfTail3.rotation.x = -0.35;
+          ud.scarfTail1.rotation.y = Math.sin(time * 8) * 0.2;
+          ud.scarfTail2.rotation.y = Math.sin(time * 8 - 0.5) * 0.25;
+          ud.scarfTail3.rotation.y = Math.sin(time * 8 - 1.0) * 0.3;
+        } else {
+          ud.scarfTail1.rotation.x = -0.1;
+          ud.scarfTail2.rotation.x = -0.08;
+          ud.scarfTail3.rotation.x = -0.05;
+          ud.scarfTail1.rotation.y = Math.sin(time * 3) * 0.18;
+          ud.scarfTail2.rotation.y = Math.sin(time * 3 - 0.6) * 0.22;
+          ud.scarfTail3.rotation.y = Math.sin(time * 3 - 1.2) * 0.28;
+        }
+      }
+
+      // 5. Fireflies orbiting Bé Mây's conical hat
+      if (ud.orbitFireflies && ud.orbitGroup) {
+        const activeCount = Math.min(10, carried);
+        for (let i = 0; i < ud.orbitFireflies.length; i++) {
+          const ff = ud.orbitFireflies[i];
+          if (i < activeCount) {
+            ff.visible = true;
+            const ang = (i / activeCount) * Math.PI * 2 + time * 2.5;
+            const r = 0.85 + Math.sin(time * 3 + i) * 0.12;
+            ff.position.set(Math.cos(ang) * r, Math.sin(time * 4 + i * 0.7) * 0.18, Math.sin(ang) * r);
+          } else {
+            ff.visible = false;
+          }
+        }
+      }
     }
   }
 
