@@ -464,14 +464,14 @@ function onWindowResize() {
 
 function togglePauseGame() {
   if (!sim) return;
-  sim.applyInputFrame({ pause: true });
-  sim.step();
-  sim.applyInputFrame({ pause: false });
-
   const modalPause = document.getElementById('modal-pause');
-  if (sim.state === 'paused') {
+  if (!sim.isPaused) {
+    sim.isPaused = true;
+    sim.state = "paused";
     modalPause.classList.add('active');
   } else {
+    sim.isPaused = false;
+    sim.state = "playing";
     modalPause.classList.remove('active');
   }
 }

@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node src/server.js",
     "test": "node tests/run_all_tests.js",
+    "test:e2e": "node tests/e2e_game_test.js",
     "headless": "node src/headless.js"
   },
   "keywords": [
@@ -16,5 +17,8 @@
     "ai-sdlc"
   ],
   "author": "2A202603516-TranQuangNam",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "playwright": "^1.65.1"
+  }
 }

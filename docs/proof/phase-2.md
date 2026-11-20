@@ -46,3 +46,52 @@ Toàn bộ test Phase 2 (Contract v1.1) đã ĐẠT hoàn hảo!
 Toàn bộ chu kỳ trạng thái của Bóng Mực đã được đồng bộ chuẩn:
 `spawning` -> `wander` <-> `chase` -> `recoil` / `stunned`.
 Mọi snapshot v1.1 đều cung cấp đầy đủ các trường `night`, `wind`, `player.vel`, `grounded`, `dash_cd_s`, `pulse_cd_s`, `charm_s`, các mảng bắt buộc `motes`, `drifters`, `charms`.
+
+
+---
+
+## 4. Bằng chứng Kiểm thử Giao diện & Trình duyệt (Playwright E2E Testing)
+
+Lệnh thực thi:
+```bash
+npm run test:e2e
+```
+
+Kết quả thực nghiệm:
+```text
+=== BẮT ĐẦU CHẠY KIỂM THỬ PLAYWRIGHT E2E CHO GAME 3D ===
+[E2E] Web Server đang lắng nghe tại http://localhost:3005
+
+[1] Kiểm tra tải trang chính index.html...
+  [PASS] Tải trang web thành công
+  [PASS] Three.js Canvas kết xuất thành công
+  [PASS] Hộp thoại giới thiệu Đêm 1 hiển thị
+  [PASS] Đóng hộp thoại giới thiệu và bắt đầu màn chơi
+  [PASS] HUD hiển thị đủ 3 Ngọn Lửa sinh mệnh
+  [PASS] HUD hiển thị đủ thanh 10 ô đom đóm
+  [PASS] Mũi tên chỉ hướng Đèn Lớn hoạt động trực quan
+
+[2] Kiểm tra nhận input người chơi (WASD, Space, Shift, F, E)...
+  [PASS] Các phím điều khiển Mây xử lý mượt mà không có ngoại lệ
+
+[3] Kiểm tra Menu Tạm dừng & Cài đặt...
+  [PASS] Phím Esc mở Menu Tạm dừng thành công
+  [PASS] Nút Tiếp tục đóng Menu Tạm dừng và tiếp diễn game
+
+[4] Kiểm tra chuyển cảnh sang Đêm 2 (Đảo Cau)...
+  [PASS] Đêm 2 (Đảo Cau) khởi tạo với 6 Đèn Lớn và cầu tre
+
+[5] Kiểm tra chuyển cảnh sang Đêm 3 (Đảo Chuông)...
+  [PASS] Đêm 3 (Đảo Chuông) khởi tạo với 3 tầng đá và 7 Đèn Lớn
+  [PASS] Lưu ảnh chụp bằng chứng game chạy thành công (e2e_night3_test.png)
+
+[6] Tổng kết lỗi Runtime...
+  [PASS] Không có lỗi Console Error (Số lỗi: 0)
+  [PASS] Không có lỗi Unhandled Page Error (Số lỗi: 0)
+
+=== TỔNG KẾT E2E: 15 PASS, 0 FAIL ===
+```
+
+### Các lỗi phát hiện và đã sửa dứt điểm:
+1. **Lỗi 404 Favicon:** Trình duyệt tự động request `/favicon.ico` gây lỗi console 404 -> Đã bổ sung favicon SVG nhúng trực tiếp và cấu hình server trả status code 204.
+2. **Lỗi Resume Menu Tạm dừng:** Nút bấm UI Resume kích hoạt toggle trực tiếp trạng thái `isPaused` thay vì phụ thuộc xung nhịp bàn phím, đảm bảo Menu Tạm dừng đóng/mở mượt mà 100%.
