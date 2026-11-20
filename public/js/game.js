@@ -517,17 +517,42 @@ function buildCharms() {
   });
 }
 
+// Keybindings configuration (Accessibility)
+const defaultKeybindings = {
+  moveForward: 'w',
+  moveBackward: 's',
+  moveLeft: 'a',
+  moveRight: 'd',
+  jump: ' ',
+  dash: 'shift',
+  interact: 'e',
+  pulse: 'f',
+  pause: 'escape'
+};
+let userKeybindings = Object.assign({}, defaultKeybindings);
+let remappingAction = null;
+
+try {
+  const savedKeys = localStorage.getItem('dao_den_long_keybinds');
+  if (savedKeys) userKeybindings = Object.assign(userKeybindings, JSON.parse(savedKeys));
+} catch (e) {}
+
 function onKeyDown(e) {
   window.soundFx.init();
+  if (remappingAction) {
+    e.preventDefault();
+    handleRemapKey(e);
+    return;
+  }
   const k = e.key.toLowerCase();
   keys[k] = true;
 
-  if (k === ' ' || k === 'space') latchedKeys.jump = true;
-  if (k === 'shift') latchedKeys.dash = true;
-  if (k === 'e' || k === 'enter') latchedKeys.interact = true;
-  if (k === 'f') latchedKeys.pulse = true;
+  if (k === ' ' || k === 'space' || k === userKeybindings.jump) latchedKeys.jump = true;
+  if (k === 'shift' || k === userKeybindings.dash) latchedKeys.dash = true;
+  if (k === 'e' || k === 'enter' || k === userKeybindings.interact) latchedKeys.interact = true;
+  if (k === 'f' || k === userKeybindings.pulse) latchedKeys.pulse = true;
 
-  if (k === 'escape' || k === 'p') {
+  if (k === 'escape' || k === 'p' || k === userKeybindings.pause) {
     togglePauseGame();
   } else if (k === 'r') {
     restartCurrentNight();
@@ -626,6 +651,40 @@ function loadSettings() {
     const el = document.getElementById('setting-colorblind');
     if (el) el.checked = true;
   }
+  const savedRm = localStorage.getItem('dao_den_long_reduced_motion');
+  if (savedRm === 'true') {
+    document.body.classList.add('reduced-motion');
+    const el = document.getElementById('setting-reduced-motion');
+    if (el) el.checked = true;
+  }
+  const savedLt = localStorage.getItem('dao_den_long_large_text');
+  if (savedLt === 'true') {
+    document.body.classList.add('large-text');
+    const el = document.getElementById('setting-large-text');
+    if (el) el.checked = true;
+  }
+}
+
+function toggleReducedMotionSetting() {
+  const cb = document.getElementById('setting-reduced-motion');
+  const isReduced = cb ? cb.checked : false;
+  if (isReduced) {
+    document.body.classList.add('reduced-motion');
+  } else {
+    document.body.classList.remove('reduced-motion');
+  }
+  localStorage.setItem('dao_den_long_reduced_motion', isReduced ? 'true' : 'false');
+}
+
+function toggleLargeTextSetting() {
+  const cb = document.getElementById('setting-large-text');
+  const isLarge = cb ? cb.checked : false;
+  if (isLarge) {
+    document.body.classList.add('large-text');
+  } else {
+    document.body.classList.remove('large-text');
+  }
+  localStorage.setItem('dao_den_long_large_text', isLarge ? 'true' : 'false');
 }
 
 let lastTime = 0;
@@ -642,23 +701,28 @@ function animate(now) {
   while (accumTime >= tickDuration) {
     if (sim && sim.state === 'playing') {
       let mx = 0, mz = 0;
-      if (keys['w'] || keys['arrowup']) mz += 1;
-      if (keys['s'] || keys['arrowdown']) mz -= 1;
-      if (keys['a'] || keys['arrowleft']) mx += 1;  // A: Sang trái màn hình
-      if (keys['d'] || keys['arrowright']) mx -= 1; // D: Sang phải màn hình
+      const fwd = userKeybindings.moveForward;
+      const back = userKeybindings.moveBackward;
+      const left = userKeybindings.moveLeft;
+      const right = userKeybindings.moveRight;
+
+      if (keys[fwd] || keys['w'] || keys['arrowup']) mz += 1;
+      if (keys[back] || keys['s'] || keys['arrowdown']) mz -= 1;
+      if (keys[left] || keys['a'] || keys['arrowleft']) mx += 1;  // A: Sang trái màn hình
+      if (keys[right] || keys['d'] || keys['arrowright']) mx -= 1; // D: Sang phải màn hình
 
       if (keys['q']) camYaw += 0.03;
-      if (keys['e']) camYaw -= 0.03;
+      if (keys['e'] && fwd !== 'e' && left !== 'e') camYaw -= 0.03;
 
       const yawDeg = (camYaw * 180 / Math.PI) % 360;
 
       const frame = {
         move: [mx, mz],
         cam_yaw_deg: yawDeg,
-        jump: !!(keys[' '] || keys['space'] || latchedKeys.jump),
-        dash: !!(keys['shift'] || latchedKeys.dash),
-        interact: !!(keys['e'] || keys['enter'] || latchedKeys.interact),
-        pulse: !!(keys['f'] || latchedKeys.pulse)
+        jump: !!(keys[userKeybindings.jump] || keys[' '] || keys['space'] || latchedKeys.jump),
+        dash: !!(keys[userKeybindings.dash] || keys['shift'] || latchedKeys.dash),
+        interact: !!(keys[userKeybindings.interact] || keys['e'] || keys['enter'] || latchedKeys.interact),
+        pulse: !!(keys[userKeybindings.pulse] || keys['f'] || latchedKeys.pulse)
       };
 
       latchedKeys.jump = false;
@@ -985,6 +1049,195 @@ function renderVisuals(time) {
 
   // Cloud rotation
   if (cloudsParticles) cloudsParticles.rotation.y = time * 0.01;
+}
+
+// ==========================================
+// Phase 4: Leaderboard & Accessibility Modal Handlers
+// ==========================================
+
+async function openLeaderboardModal() {
+  const modal = document.getElementById('modal-leaderboard');
+  if (modal) modal.classList.add('active');
+  const tbody = document.getElementById('leaderboard-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">Đang tải dữ liệu...</td></tr>';
+  
+  try {
+    const res = await fetch('/api/leaderboard');
+    if (res.ok) {
+      const data = await res.json();
+      renderLeaderboardRows(data.entries || []);
+      return;
+    }
+  } catch (err) {}
+  
+  // Fallback to localStorage
+  try {
+    const saved = localStorage.getItem('dao_den_long_leaderboard');
+    const entries = saved ? JSON.parse(saved) : [];
+    renderLeaderboardRows(entries);
+  } catch (e) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">Chưa có dữ liệu kỷ lục.</td></tr>';
+  }
+}
+
+function renderLeaderboardRows(entries) {
+  const tbody = document.getElementById('leaderboard-tbody');
+  if (!tbody) return;
+  if (!entries || entries.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #8F94A6;">Chưa có kỷ lục nào. Hãy trở thành người đầu tiên!</td></tr>';
+    return;
+  }
+  tbody.innerHTML = entries.slice(0, 10).map((e, idx) => {
+    const medal = idx === 0 ? '🥇 #1' : (idx === 1 ? '🥈 #2' : (idx === 2 ? '🥉 #3' : `#${idx + 1}`));
+    const dateStr = e.achieved_at ? e.achieved_at.substring(0, 10) : '—';
+    return `<tr>
+      <td style="font-weight: bold; color: #F2C14E;">${medal}</td>
+      <td>${escapeHtml(e.player_name || 'Mây Vô Danh')}</td>
+      <td style="font-weight: bold; color: #00E5FF;">${e.score}</td>
+      <td>Đêm ${e.night_reached || 1}</td>
+      <td style="font-size: 0.8rem; color: #8F94A6;">${dateStr}</td>
+    </tr>`;
+  }).join('');
+}
+
+function closeLeaderboardModal() {
+  const modal = document.getElementById('modal-leaderboard');
+  if (modal) modal.classList.remove('active');
+}
+
+async function submitScore(nameInputId, msgId, nightNum) {
+  const input = document.getElementById(nameInputId);
+  const msgEl = document.getElementById(msgId);
+  if (!input || !msgEl) return;
+  const name = input.value.trim() || 'Mây';
+  if (name.length < 2) {
+    msgEl.textContent = 'Vui lòng nhập tên từ 2 ký tự trở lên!';
+    msgEl.style.color = '#FF5A5F';
+    return;
+  }
+  const scoreVal = (typeof campaignScore !== 'undefined' && campaignScore > 0)
+    ? (campaignScore + (sim ? sim.score : 0))
+    : (sim ? sim.score : 0);
+  const payload = {
+    player_name: name,
+    score: scoreVal,
+    night_reached: nightNum || (sim ? sim.night : 1),
+    achieved_at: new Date().toISOString()
+  };
+  
+  try {
+    const res = await fetch('/api/leaderboard', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (res.ok) {
+      msgEl.textContent = '✓ Đã ghi danh thành công vào Bảng Xếp Hạng!';
+      msgEl.style.color = '#00FFCC';
+      input.disabled = true;
+      return;
+    }
+  } catch (err) {}
+
+  try {
+    let list = JSON.parse(localStorage.getItem('dao_den_long_leaderboard') || '[]');
+    list.push(payload);
+    list.sort((a, b) => b.score - a.score || new Date(a.achieved_at) - new Date(b.achieved_at));
+    localStorage.setItem('dao_den_long_leaderboard', JSON.stringify(list.slice(0, 10)));
+    msgEl.textContent = '✓ Đã lưu kỷ lục vào máy!';
+    msgEl.style.color = '#00FFCC';
+    input.disabled = true;
+  } catch (e) {
+    msgEl.textContent = 'Lỗi lưu điểm!';
+    msgEl.style.color = '#FF5A5F';
+  }
+}
+
+function submitScoreFromWon() { submitScore('won-player-name', 'won-submit-msg', sim ? sim.night : 1); }
+function submitScoreFromLost() { submitScore('lost-player-name', 'lost-submit-msg', sim ? sim.night : 1); }
+function submitScoreFromDawn() { submitScore('dawn-player-name', 'dawn-submit-msg', 3); }
+
+function openKeybindingsModal() {
+  const modal = document.getElementById('modal-keybinds');
+  if (modal) modal.classList.add('active');
+  updateKeybindButtonsUI();
+}
+
+function closeKeybindingsModal() {
+  remappingAction = null;
+  const warn = document.getElementById('keybind-warning');
+  if (warn) warn.style.display = 'none';
+  const modal = document.getElementById('modal-keybinds');
+  if (modal) modal.classList.remove('active');
+}
+
+function updateKeybindButtonsUI() {
+  for (const [action, key] of Object.entries(userKeybindings)) {
+    const btn = document.getElementById(`keybtn-${action}`);
+    if (btn) {
+      btn.textContent = key === ' ' ? 'Space' : key.toUpperCase();
+      btn.classList.remove('listening');
+    }
+  }
+}
+
+function startRemapping(action) {
+  remappingAction = action;
+  const warn = document.getElementById('keybind-warning');
+  if (warn) {
+    warn.style.display = 'block';
+    warn.textContent = `Nhấn một phím trên bàn phím để gán cho: ${action}`;
+    warn.style.color = '#F2C14E';
+  }
+  updateKeybindButtonsUI();
+  const btn = document.getElementById(`keybtn-${action}`);
+  if (btn) {
+    btn.textContent = '...nhấn phím...';
+    btn.classList.add('listening');
+  }
+}
+
+function handleRemapKey(e) {
+  if (!remappingAction) return;
+  const k = e.key.toLowerCase();
+  const warn = document.getElementById('keybind-warning');
+  
+  // Duplicate check
+  for (const [act, boundKey] of Object.entries(userKeybindings)) {
+    if (act !== remappingAction && boundKey === k) {
+      if (warn) {
+        warn.textContent = `Phím "${k.toUpperCase()}" đã được gán cho hành động khác! Vui lòng chọn phím khác.`;
+        warn.style.color = '#FF5A5F';
+      }
+      return;
+    }
+  }
+  
+  userKeybindings[remappingAction] = k;
+  localStorage.setItem('dao_den_long_keybinds', JSON.stringify(userKeybindings));
+  if (warn) {
+    warn.textContent = `✓ Đã gán phím ${k.toUpperCase()} thành công!`;
+    warn.style.color = '#00FFCC';
+  }
+  remappingAction = null;
+  updateKeybindButtonsUI();
+}
+
+function resetKeybindingsToDefault() {
+  userKeybindings = Object.assign({}, defaultKeybindings);
+  localStorage.removeItem('dao_den_long_keybinds');
+  const warn = document.getElementById('keybind-warning');
+  if (warn) {
+    warn.textContent = '✓ Đã khôi phục cài đặt phím mặc định!';
+    warn.style.color = '#00FFCC';
+  }
+  remappingAction = null;
+  updateKeybindButtonsUI();
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 window.onload = init;

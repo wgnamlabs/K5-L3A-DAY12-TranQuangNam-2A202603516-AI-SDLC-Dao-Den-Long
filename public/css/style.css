@@ -419,3 +419,159 @@ body.colorblind-mode #modal-lost h1::before {
   width: 20px;
   height: 20px;
 }
+
+/* Phase 4 Modals & Accessibility Styles */
+#modal-keybinds, #modal-leaderboard {
+  z-index: 150;
+}
+
+.leaderboard-box, .keybindings-box {
+  max-width: 650px !important;
+  width: 90%;
+}
+
+.leaderboard-table-container {
+  max-height: 320px;
+  overflow-y: auto;
+  margin: 16px 0;
+  border-radius: 8px;
+  background: rgba(14, 20, 48, 0.6);
+  border: 1px solid rgba(242, 193, 78, 0.3);
+}
+
+.leaderboard-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.leaderboard-table th, .leaderboard-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.leaderboard-table th {
+  background: rgba(27, 35, 80, 0.9);
+  color: #F2C14E;
+  font-family: 'Cinzel', serif;
+  font-size: 0.85rem;
+  position: sticky;
+  top: 0;
+}
+
+.keybind-table {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 14px 0;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.keybind-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 12px;
+  background: rgba(14, 20, 48, 0.5);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.btn-key {
+  min-width: 90px;
+  padding: 6px 14px;
+  background: #0E1430;
+  color: #F2C14E;
+  border: 1px solid #F2C14E;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+  font-family: monospace;
+  transition: all 0.2s;
+}
+
+.btn-key:hover {
+  background: #F2C14E;
+  color: #0E1430;
+}
+
+.btn-key.listening {
+  background: #FF5A5F;
+  color: #FFF;
+  border-color: #FFF;
+  animation: pulseKey 0.8s infinite alternate;
+}
+
+@keyframes pulseKey {
+  from { opacity: 0.6; }
+  to { opacity: 1.0; }
+}
+
+.keybind-warning {
+  padding: 8px 12px;
+  margin-bottom: 10px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.4);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+/* Reduced Motion */
+body.reduced-motion *, body.reduced-motion *::before, body.reduced-motion *::after {
+  animation: none !important;
+  transition: none !important;
+}
+
+/* Large Text */
+body.large-text #hud {
+  font-size: 1.2rem;
+}
+body.large-text .time-counter {
+  font-size: 2.2rem;
+}
+body.large-text .modal-box {
+  font-size: 1.25rem;
+}
+body.large-text .controls-hint {
+  font-size: 1.1rem;
+}
+
+/* Offscreen Arrow & Subtitles */
+.offscreen-arrow {
+  position: absolute;
+  color: #FF5A5F;
+  font-size: 28px;
+  font-weight: bold;
+  z-index: 50;
+  pointer-events: none;
+  filter: drop-shadow(0 0 8px rgba(255, 90, 95, 0.8));
+}
+
+.subtitles-container {
+  position: absolute;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 50;
+  pointer-events: none;
+}
+
+.subtitle-item {
+  background: rgba(14, 20, 48, 0.85);
+  border: 1px solid #F2C14E;
+  color: #FFF;
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 0.95rem;
+  backdrop-filter: blur(4px);
+  animation: subFadeIn 0.3s ease;
+}
+
+@keyframes subFadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
