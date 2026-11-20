@@ -210,92 +210,317 @@ function startNightGame() {
   updateHUD();
 }
 
+let decoSeed = 12345;
+function decoRandom() {
+  decoSeed = (decoSeed * 9301 + 49297) % 233280;
+  return decoSeed / 233280;
+}
+
 function buildIslandTerrain(night) {
   if (islandMeshGroup) scene.remove(islandMeshGroup);
   islandMeshGroup = new THREE.Group();
+  decoSeed = 12345 + night * 777;
 
-  const grassMat = new THREE.MeshStandardMaterial({ color: 0x2F5D50, roughness: 0.85 });
-  const woodMat = new THREE.MeshStandardMaterial({ color: 0x6B4A2F, roughness: 0.9 });
-  const stoneMat = new THREE.MeshStandardMaterial({ color: 0xC9B48A, roughness: 0.8 });
+  const grassMat = new THREE.MeshStandardMaterial({ color: 0x275242, roughness: 0.88 });
+  const pathMat = new THREE.MeshStandardMaterial({ color: 0x624832, roughness: 0.92 });
+  const stoneMat = new THREE.MeshStandardMaterial({ color: 0x766F64, roughness: 0.85 });
+  const cliffMat = new THREE.MeshStandardMaterial({ color: 0x48423B, roughness: 0.95 });
+  const bambooMat = new THREE.MeshStandardMaterial({ color: 0x826D38, roughness: 0.7 });
+  const palmLeafMat = new THREE.MeshStandardMaterial({ color: 0x2D6638, roughness: 0.75, side: THREE.DoubleSide });
+  const rootMat = new THREE.MeshStandardMaterial({ color: 0x3D2B1F, roughness: 0.9 });
+  const flowerMat1 = new THREE.MeshStandardMaterial({ color: 0xF2C14E, emissive: 0x443300 });
+  const flowerMat2 = new THREE.MeshStandardMaterial({ color: 0x9B5DE5, emissive: 0x221133 });
+  const mushroomMat = new THREE.MeshStandardMaterial({ color: 0x00E5FF, emissive: 0x008899 });
+
+  // 1. Instanced Grass Setup
+  const grassCount = graphicsQuality === 'low' ? 120 : (graphicsQuality === 'high' ? 600 : 320);
+  const grassGeo = new THREE.PlaneGeometry(0.35, 0.55);
+  grassGeo.translate(0, 0.27, 0);
+  const grassBladeMat = new THREE.MeshStandardMaterial({
+    color: 0x3E7D58,
+    roughness: 0.8,
+    side: THREE.DoubleSide
+  });
+  const grassInst = new THREE.InstancedMesh(grassGeo, grassBladeMat, grassCount);
+  grassInst.castShadow = false;
+  grassInst.receiveShadow = true;
+  const dummyMat = new THREE.Matrix4();
+  let gIdx = 0;
 
   if (night === 1) {
     // Single island r = 40m
-    const islandGeo = new THREE.CylinderGeometry(40, 38, 4, 48);
+    const islandGeo = new THREE.CylinderGeometry(40, 37, 5, 48);
     const islandMesh = new THREE.Mesh(islandGeo, grassMat);
-    islandMesh.position.y = -2;
+    islandMesh.position.y = -2.5;
     islandMesh.receiveShadow = true;
     islandMeshGroup.add(islandMesh);
 
-    // Stone path
-    const pathGeo = new THREE.RingGeometry(22, 26, 48);
-    pathGeo.rotateX(-Math.PI / 2);
-    const pathMesh = new THREE.Mesh(pathGeo, stoneMat);
+    // Island rim cliff ring
+    const rimGeo = new THREE.TorusGeometry(39.5, 0.8, 8, 48);
+    rimGeo.rotateX(Math.PI / 2);
+    const rimMesh = new THREE.Mesh(rimGeo, cliffMat);
+    rimMesh.position.y = -0.1;
+    islandMeshGroup.add(rimMesh);
+
+    // Curved dirt paths connecting center to outer areas
+    const pathRingGeo = new THREE.RingGeometry(21.5, 26.5, 48);
+    pathRingGeo.rotateX(-Math.PI / 2);
+    const pathMesh = new THREE.Mesh(pathRingGeo, pathMat);
     pathMesh.position.y = 0.02;
+    pathMesh.receiveShadow = true;
     islandMeshGroup.add(pathMesh);
+
+    // Cross connecting paths
+    const crossPathGeo = new THREE.PlaneGeometry(3.5, 46);
+    crossPathGeo.rotateX(-Math.PI / 2);
+    const crossPath = new THREE.Mesh(crossPathGeo, pathMat);
+    crossPath.position.y = 0.025;
+    islandMeshGroup.add(crossPath);
+
+    // Populate Instanced Grass on Island 1
+    for (let i = 0; i < grassCount; i++) {
+      const ang = decoRandom() * Math.PI * 2;
+      const rad = 4 + decoRandom() * 34;
+      const x = Math.cos(ang) * rad;
+      const z = Math.sin(ang) * rad;
+      const rotY = decoRandom() * Math.PI * 2;
+      const scale = 0.7 + decoRandom() * 0.6;
+      dummyMat.makeRotationY(rotY);
+      dummyMat.scale(new THREE.Vector3(scale, scale, scale));
+      dummyMat.setPosition(x, 0.01, z);
+      grassInst.setMatrixAt(gIdx++, dummyMat);
+    }
+
+    // Mossy rocks, wildflowers & glowing mushrooms
+    for (let r = 0; r < 20; r++) {
+      const ang = (r / 20) * Math.PI * 2 + decoRandom() * 0.2;
+      const rad = 12 + decoRandom() * 24;
+      const rx = Math.cos(ang) * rad;
+      const rz = Math.sin(ang) * rad;
+
+      // Rock
+      const rockMesh = new THREE.Mesh(new THREE.DodecahedronGeometry(0.7 + decoRandom() * 0.6, 1), stoneMat);
+      rockMesh.position.set(rx, 0.35, rz);
+      rockMesh.scale.set(1.2, 0.6 + decoRandom() * 0.4, 1.0);
+      rockMesh.rotation.set(decoRandom(), decoRandom(), decoRandom());
+      rockMesh.castShadow = true;
+      islandMeshGroup.add(rockMesh);
+
+      // Bioluminescent mushroom near rock
+      if (r % 2 === 0) {
+        const shroom = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 8, 0, Math.PI * 2, 0, Math.PI * 0.5), mushroomMat);
+        shroom.position.set(rx + 0.6, 0.15, rz + 0.4);
+        islandMeshGroup.add(shroom);
+      }
+    }
+
+    // Hanging cliff roots and vines thòng xuống biển mây
+    for (let v = 0; v < 16; v++) {
+      const ang = (v / 16) * Math.PI * 2;
+      const rootMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.02, 3.5 + decoRandom() * 2.5, 5), rootMat);
+      rootMesh.position.set(Math.cos(ang) * 39.5, -3.0, Math.sin(ang) * 39.5);
+      rootMesh.rotation.z = Math.cos(ang) * 0.15;
+      rootMesh.rotation.x = -Math.sin(ang) * 0.15;
+      islandMeshGroup.add(rootMesh);
+    }
+
   } else if (night === 2) {
+    // Đêm 2: Đảo Cau & Cầu Tre
     // Island A (r=28)
-    const iAGeo = new THREE.CylinderGeometry(28, 26, 4, 36);
+    const iAGeo = new THREE.CylinderGeometry(28, 25, 5, 40);
     const iAMesh = new THREE.Mesh(iAGeo, grassMat);
-    iAMesh.position.set(0, -2, 0);
+    iAMesh.position.set(0, -2.5, 0);
+    iAMesh.receiveShadow = true;
     islandMeshGroup.add(iAMesh);
 
     // Island B (r=28 at x=70)
-    const iBGeo = new THREE.CylinderGeometry(28, 26, 4, 36);
+    const iBGeo = new THREE.CylinderGeometry(28, 25, 5, 40);
     const iBMesh = new THREE.Mesh(iBGeo, grassMat);
-    iBMesh.position.set(70, -2, 0);
+    iBMesh.position.set(70, -2.5, 0);
+    iBMesh.receiveShadow = true;
     islandMeshGroup.add(iBMesh);
 
-    // Bamboo bridge x in [26, 44], z in [-2, 2]
-    const bridgeGeo = new THREE.BoxGeometry(18, 0.4, 4);
-    const bridgeMesh = new THREE.Mesh(bridgeGeo, woodMat);
-    bridgeMesh.position.set(35, -0.2, 0);
-    islandMeshGroup.add(bridgeMesh);
+    // BAMBOO BRIDGE spanning x: 26 to 44, z: -2 to 2
+    const bridgeGroup = new THREE.Group();
+    bridgeGroup.position.set(0, 0, 0);
+
+    // 4 Longitudinal bamboo support trunks
+    for (let b = -1.5; b <= 1.5; b += 1.0) {
+      const bTrunk = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 18.2, 8), bambooMat);
+      bTrunk.rotation.z = Math.PI / 2;
+      bTrunk.position.set(35, -0.3, b);
+      bTrunk.castShadow = true;
+      bridgeGroup.add(bTrunk);
+    }
+
+    // Transverse bamboo slats (38 slats)
+    for (let s = 0; s < 38; s++) {
+      const sx = 26 + (s / 37) * 18;
+      const slat = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 4.2, 6), bambooMat);
+      slat.rotation.x = Math.PI / 2;
+      slat.position.set(sx, -0.15, 0);
+      slat.castShadow = true;
+      bridgeGroup.add(slat);
+    }
+
+    // Bamboo Handrails & Posts
+    for (let side = -1; side <= 1; side += 2) {
+      const zPos = side * 1.95;
+      // Railing top pole
+      const railPole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 18, 6), bambooMat);
+      railPole.rotation.z = Math.PI / 2;
+      railPole.position.set(35, 0.65, zPos);
+      bridgeGroup.add(railPole);
+
+      // Vertical posts
+      for (let p = 0; p <= 8; p++) {
+        const px = 26.5 + (p / 8) * 17;
+        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.9, 6), bambooMat);
+        post.position.set(px, 0.25, zPos);
+        bridgeGroup.add(post);
+      }
+    }
+    islandMeshGroup.add(bridgeGroup);
+
+    // ARECA PALM TREES (Hàng cau cao vút)
+    for (let t = 0; t < 12; t++) {
+      const isIslandB = t >= 6;
+      const centerX = isIslandB ? 70 : 0;
+      const ang = ((t % 6) / 6) * Math.PI * 2 + 0.4;
+      const rad = 14 + decoRandom() * 9;
+      const px = centerX + Math.cos(ang) * rad;
+      const pz = Math.sin(ang) * rad;
+
+      const palmGroup = new THREE.Group();
+      palmGroup.position.set(px, 0, pz);
+
+      // Slender trunk with rings (height 8.5m)
+      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.22, 8.5, 8), bambooMat);
+      trunk.position.y = 4.25;
+      trunk.castShadow = true;
+      palmGroup.add(trunk);
+
+      // Fronds / Tàu lá cau xòe rộng
+      for (let f = 0; f < 7; f++) {
+        const fang = (f / 7) * Math.PI * 2;
+        const frond = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 3.2), palmLeafMat);
+        frond.position.set(Math.cos(fang) * 1.1, 8.4, Math.sin(fang) * 1.1);
+        frond.rotation.y = fang;
+        frond.rotation.x = 0.55;
+        palmGroup.add(frond);
+      }
+      islandMeshGroup.add(palmGroup);
+    }
 
     // Launch pads: (20, 0, 18) and (50, 0, -18)
-    const padGeo = new THREE.CylinderGeometry(1.0, 1.0, 0.2, 16);
-    const padMat = new THREE.MeshStandardMaterial({ color: 0xF2C14E, emissive: 0x553300 });
-    const pad1 = new THREE.Mesh(padGeo, padMat);
-    pad1.position.set(20, 0.1, 18);
+    const padMat = new THREE.MeshStandardMaterial({ color: 0xF2C14E, emissive: 0x774400, roughness: 0.4 });
+    const pad1 = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.4, 0.25, 8), padMat);
+    pad1.position.set(20, 0.12, 18);
     islandMeshGroup.add(pad1);
 
-    const pad2 = new THREE.Mesh(padGeo, padMat);
-    pad2.position.set(50, 0.1, -18);
+    const pad2 = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.4, 0.25, 8), padMat);
+    pad2.position.set(50, 0.12, -18);
     islandMeshGroup.add(pad2);
+
+    // Grass on Island A and B
+    for (let i = 0; i < grassCount; i++) {
+      const isB = i % 2 === 0;
+      const cx = isB ? 70 : 0;
+      const ang = decoRandom() * Math.PI * 2;
+      const rad = 3 + decoRandom() * 23;
+      const x = cx + Math.cos(ang) * rad;
+      const z = Math.sin(ang) * rad;
+      dummyMat.makeRotationY(decoRandom() * Math.PI * 2);
+      dummyMat.scale(new THREE.Vector3(0.8, 0.8, 0.8));
+      dummyMat.setPosition(x, 0.01, z);
+      grassInst.setMatrixAt(gIdx++, dummyMat);
+    }
+
   } else if (night === 3) {
-    // 3 Tiers Island
+    // Đêm 3: Đảo Chuông 3 Tầng Đá
     // Tier 0: r = 45m
-    const t0Geo = new THREE.CylinderGeometry(45, 43, 4, 48);
+    const t0Geo = new THREE.CylinderGeometry(45, 42, 5, 48);
     const t0 = new THREE.Mesh(t0Geo, grassMat);
-    t0.position.y = -2;
+    t0.position.y = -2.5;
+    t0.receiveShadow = true;
     islandMeshGroup.add(t0);
 
     // Tier 1: ring r in [12, 24] with z > 0, height Y = 3
     const t1Geo = new THREE.CylinderGeometry(24, 24, 3, 36, 1, false, 0, Math.PI);
     const t1 = new THREE.Mesh(t1Geo, stoneMat);
     t1.position.set(0, 1.5, 0);
+    t1.receiveShadow = true;
     islandMeshGroup.add(t1);
 
     // Tier 2: disk r = 8m, height Y = 6
     const t2Geo = new THREE.CylinderGeometry(8, 8, 6, 24);
     const t2 = new THREE.Mesh(t2Geo, stoneMat);
     t2.position.set(0, 3, 0);
+    t2.receiveShadow = true;
     islandMeshGroup.add(t2);
 
-    // Bell Tower at center: height 8m, radius 2m
-    const towerGeo = new THREE.CylinderGeometry(2, 2.2, 8, 16);
-    const towerMat = new THREE.MeshStandardMaterial({ color: 0x6B4A2F });
-    const tower = new THREE.Mesh(towerGeo, towerMat);
-    tower.position.set(0, 10, 0);
-    islandMeshGroup.add(tower);
+    // Ancient Stone Stairs connecting Tier 0 -> Tier 1 (at z ~ 12)
+    const stairGeo = new THREE.BoxGeometry(3.5, 0.35, 1.2);
+    for (let st = 0; st < 8; st++) {
+      const step = new THREE.Mesh(stairGeo, stoneMat);
+      step.position.set(0, 0.2 + st * 0.36, 23.5 - st * 1.3);
+      step.castShadow = true;
+      step.receiveShadow = true;
+      islandMeshGroup.add(step);
+    }
+
+    // Bell Tower at center of Tier 2: height 8m, radius 2m
+    const towerGroup = new THREE.Group();
+    towerGroup.position.set(0, 6, 0);
+
+    const tBase = new THREE.Mesh(new THREE.CylinderGeometry(2.4, 2.6, 2.0, 8), stoneMat);
+    tBase.position.y = 1.0;
+    towerGroup.add(tBase);
+
+    // Wooden pavilion pillars
+    for (let c = 0; c < 8; c++) {
+      const cang = (c / 8) * Math.PI * 2;
+      const cpost = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.14, 5.0, 6), bambooMat);
+      cpost.position.set(Math.cos(cang) * 2.0, 4.5, Math.sin(cang) * 2.0);
+      cpost.castShadow = true;
+      towerGroup.add(cpost);
+    }
+
+    // Pagoda curved roof
+    const tRoof = new THREE.Mesh(new THREE.ConeGeometry(3.6, 1.4, 8), cliffMat);
+    tRoof.position.y = 7.6;
+    tRoof.castShadow = true;
+    towerGroup.add(tRoof);
+
+    // Large Bronze Bell hanging in the pavilion
+    const bBell = new THREE.Mesh(new THREE.ConeGeometry(0.85, 1.8, 12), new THREE.MeshStandardMaterial({ color: 0xD4A034, metalness: 0.6, roughness: 0.4 }));
+    bBell.position.y = 4.8;
+    bBell.castShadow = true;
+    towerGroup.add(bBell);
+
+    islandMeshGroup.add(towerGroup);
 
     // Launch pad on Tier 1 at (0, 3, 13)
-    const padGeo = new THREE.CylinderGeometry(1.0, 1.0, 0.2, 16);
-    const padMat = new THREE.MeshStandardMaterial({ color: 0xF2C14E, emissive: 0x553300 });
-    const pad = new THREE.Mesh(padGeo, padMat);
-    pad.position.set(0, 3.1, 13);
+    const padMat = new THREE.MeshStandardMaterial({ color: 0xF2C14E, emissive: 0x884400, roughness: 0.4 });
+    const pad = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.4, 0.25, 8), padMat);
+    pad.position.set(0, 3.12, 13);
     islandMeshGroup.add(pad);
+
+    // Grass scattered across Tier 0 and Tier 1
+    for (let i = 0; i < grassCount; i++) {
+      const ang = decoRandom() * Math.PI * 2;
+      const rad = 25 + decoRandom() * 18;
+      const x = Math.cos(ang) * rad;
+      const z = Math.sin(ang) * rad;
+      dummyMat.makeRotationY(decoRandom() * Math.PI * 2);
+      dummyMat.scale(new THREE.Vector3(0.7, 0.7, 0.7));
+      dummyMat.setPosition(x, 0.01, z);
+      grassInst.setMatrixAt(gIdx++, dummyMat);
+    }
   }
 
+  grassInst.instanceMatrix.needsUpdate = true;
+  islandMeshGroup.add(grassInst);
   scene.add(islandMeshGroup);
 }
 
@@ -1146,17 +1371,35 @@ function buildMotes() {
   moteMeshes.forEach(m => scene.remove(m));
   moteMeshes = [];
 
-  const geo = new THREE.SphereGeometry(0.18, 12, 12);
-  const mat = new THREE.MeshBasicMaterial({ color: 0xFFF6C2 });
+  const coreGeo = new THREE.SphereGeometry(0.14, 10, 10);
+  const coreMat = new THREE.MeshBasicMaterial({ color: 0xFFFBE6 });
+
+  const haloTex = createSoftCircleTexture();
+  const haloMat = new THREE.MeshBasicMaterial({
+    map: haloTex,
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    color: 0xFFDE59,
+    opacity: 0.8
+  });
 
   sim.motes.forEach(m => {
-    const mesh = new THREE.Mesh(geo, mat);
-    const light = new THREE.PointLight(0xFFE58A, 0.8, 3.5);
-    mesh.add(light);
-    mesh.position.set(m.pos[0], m.pos[1] + 0.6, m.pos[2]);
-    mesh.userData = { id: m.id };
-    scene.add(mesh);
-    moteMeshes.push(mesh);
+    const group = new THREE.Group();
+
+    const coreMesh = new THREE.Mesh(coreGeo, coreMat);
+    group.add(coreMesh);
+
+    const haloMesh = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 1.2), haloMat);
+    group.add(haloMesh);
+
+    const light = new THREE.PointLight(0xFFE58A, 0.9, 3.8);
+    group.add(light);
+
+    group.position.set(m.pos[0], m.pos[1] + 0.6, m.pos[2]);
+    group.userData = { id: m.id, haloMesh };
+    scene.add(group);
+    moteMeshes.push(group);
   });
 }
 
@@ -1904,6 +2147,10 @@ function renderVisuals(time) {
     if (mData && mData.active) {
       mesh.visible = true;
       mesh.position.y = mData.pos[1] + 0.6 + Math.sin(time * 3 + idx * 0.7) * 0.2;
+      if (mesh.userData.haloMesh) {
+        mesh.userData.haloMesh.quaternion.copy(camera.quaternion);
+        mesh.userData.haloMesh.scale.setScalar(0.9 + Math.sin(time * 4.5 + idx) * 0.18);
+      }
     } else {
       mesh.visible = false;
     }
